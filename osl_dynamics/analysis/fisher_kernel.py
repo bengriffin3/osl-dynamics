@@ -39,7 +39,7 @@ class FisherKernel:
 
         self.model = model
 
-    def get_features(self, dataset, batch_size=None):
+    def get_features(self, dataset, batch_size=None, use_analytical=0):
         """Get the Fisher features.
 
         Parameters
@@ -56,6 +56,7 @@ class FisherKernel:
         """
         _logger.info("Getting Fisher features")
 
+        subject_data = dataset
         n_sessions = dataset.n_sessions
         if batch_size is not None:
             self.model.config.batch_size = batch_size
@@ -106,7 +107,10 @@ class FisherKernel:
                         [x, gamma.reshape(x.shape[0], x.shape[1], -1)], axis=2
                     )
 
-                gradients = self._get_tf_gradients(inputs)
+                if use_analytical:
+                    gradients = self._get_analytical_gradients(gamma, subject_data[i])
+                else:
+                    gradients = self._get_tf_gradients(inputs)
 
                 for name in d_model.keys():
                     if name == "d_initial_distribution" or name == "d_trans_prob":
@@ -208,3 +212,59 @@ class FisherKernel:
             gradients = tape.gradient(loss, trainable_weights)
 
         return gradients
+
+    def _get_analytical_gradients(self, gamma, subject_data):
+            """Get the gradient with respect to means and covariances
+            (analytically, rather than numerically using Tensorflow).
+
+            Parameters
+            ----------
+            gamma : np.ndarray
+                Marginal posterior distribution of hidden states given the data.
+                Shape is (batch_size*sequence_length, n_states).
+            subject_data: np.ndarray
+
+
+            Returns
+            -------
+            gradients : dict
+                Gradients with respect to the trainable variables.
+            """
+
+            Mu, Sigma = self.model.get_means_covariances()
+            n_states = Mu.shape[0]
+
+            # random subjects in biobank have too many time points so let's take up to 490
+            if subject_data.shape[0] != gamma.shape[0]:
+                n_time_points = min(subject_data.shape[0], gamma.shape[0])
+                subject_data = subject_data[:n_time_points, ]
+                gamma = gamma[:n_time_points, ]
+
+            subject_data_transposed = subject_data.T
+
+            # gradient with respect to state means
+            dMu = np.zeros_like(Mu)
+            invSigma = np.zeros_like(Sigma)
+            for k in range(n_states):
+                invSigma[k,:,:] = np.linalg.pinv(Sigma[k,:,:])
+                dMu[k,:] = np.sum(gamma[:,k][np.newaxis, :] * (invSigma[k,:,:] @ (subject_data_transposed - Mu[k, :][:, np.newaxis])), axis=1)
+
+            # gradient with respect to state covariances
+            dSigma = np.zeros_like(Sigma)
+            for k in range(n_states):
+                Xi_V = subject_data_transposed - Mu[k, :][:, np.newaxis]
+
+                term_1 = -np.sum(gamma[:,k] / 2) * invSigma[k,:,:]
+                weighted_Xi_V = gamma[:,k][np.newaxis,:] * Xi_V 
+                term_2 = 0.5 * invSigma[k, :, :] @ (weighted_Xi_V @ Xi_V.T) @ invSigma[k, :, :]
+                dSigma[k,:,:] = term_1 + term_2
+
+            # keep only upper diagonal (including main diag)
+            m, n = np.triu_indices(dSigma.shape[-1])
+            dSigma = dSigma[..., m, n]
+
+            gradients = dict()
+            gradients['means/means_kernel/tensor:0'] = dMu    ### NEED TO SORT THIS OUT
+            gradients['covs/covs_kernel/tensor:0'] = dSigma   ### NEED TO SORT THIS OUT
+
+            return gradients
