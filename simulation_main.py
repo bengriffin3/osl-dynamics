@@ -1105,6 +1105,7 @@ if __name__ == '__main__':
                     f'{save_dir}truth/{10001 + i}_state_time_course.npy'
                     )
     '''
+    '''
     ### Update 21st October 2024
     ### Generate sliding window correlation with drift
     save_dir = './data/node_timeseries/simulation_bicv/swc_drift/'
@@ -1201,3 +1202,46 @@ if __name__ == '__main__':
                 # Save each subject's data
                 for i in range(n_subjects):
                     np.savetxt(f'{subdirectory}/{i + 10001}.txt', drift_data[i])
+    '''
+
+    ### Update 29th October 2024
+    ### Generate simulation using TPM and covariances with 50 channels, 8 states
+    ### Convolve that with hrf
+    # Case 3: TPM and Covariances come from the real data
+    from osl_dynamics.array_ops import apply_hrf
+    save_dir = './data/node_timeseries/simulation_bicv/real_hrf_50/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth')
+
+    n_subjects = 500
+    n_states = 8
+    n_samples = 1200
+    n_channels = 50
+    tr = 0.72
+
+    tpm = np.load('./results_HCP_bicv_202410/ICA_50/hmm_check/hmm_ICA_50_state_8/repeat_1/model/trans_prob.npy')
+    covs = np.load('./results_HCP_bicv_202410/ICA_50/hmm_check/hmm_ICA_50_state_8/repeat_1/inf_params/covs.npy')
+    for i in range(len(covs)):
+        covs[i] = (covs[i] + covs[i].T) / 2
+
+    sim = simulation.HMM_MVN(
+        n_samples=n_samples * n_subjects,
+        n_states=n_states,
+        n_channels=n_channels,
+        trans_prob=tpm,
+        means="zero",
+        covariances=covs,
+    )
+    data = sim.time_series
+    time_course = sim.state_time_course
+    data = data.reshape(n_subjects, -1, n_channels)
+    time_course = time_course.reshape(n_subjects, -1, n_states)
+
+    np.save(f'{save_dir}truth/state_covariances.npy', sim.obs_mod.covariances)
+    np.save(f'{save_dir}truth/tpm.npy', sim.hmm.trans_prob)
+
+    for i in range(n_subjects):
+        np.savetxt(f'{save_dir}{10001 + i}.txt', apply_hrf(data[i],tr))
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
