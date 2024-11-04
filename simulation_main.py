@@ -1407,7 +1407,7 @@ if __name__ == '__main__':
         np.savetxt(f'{save_dir}{10001 + i}.txt', apply_hrf(data[i], tr))
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
     '''
-
+    '''
     ### Update 1st November 2024
     ### Generate sliding window correlation, use randomly generated covariances
     ### Add hrf, and the window length is 15
@@ -1484,4 +1484,80 @@ if __name__ == '__main__':
 
     for i in range(n_subjects):
         np.savetxt(f'{save_dir}{10001 + i}.txt', apply_hrf(data[i], tr))
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
+    '''
+
+    ### Update 4th November 2024
+    ### Generate sliding window correlation, use randomly generated covariances
+    ### the window length is 15
+    save_dir = './data/node_timeseries/simulation_bicv/swc_50_random/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth')
+
+    n_subjects = 500
+    n_states = 8
+    n_samples = 1200
+    n_channels = 50
+
+    covariances = np.load('./data/node_timeseries/simulation_bicv/random_hrf_50/truth/state_covariances.npy')
+
+    from osl_dynamics.array_ops import get_one_hot
+
+    sim = simulation.SWC(
+        n_samples=n_samples * n_subjects,
+        n_states=n_states,
+        n_channels=n_channels,
+        stay_time=15,
+        means="zero",
+        covariances=covariances
+    )
+    data = sim.time_series
+    time_course = sim.state_time_course
+    data = data.reshape(n_subjects, -1, n_channels)
+    time_course = get_one_hot(time_course, n_states=n_states).reshape(n_subjects, -1, n_states)
+
+    np.save(f'{save_dir}truth/state_covariances.npy', covariances)
+
+    for i in range(n_subjects):
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
+
+    ### Update 4th November 2024
+    ### Generate sliding window correlation, use randomly generated covariances
+    ###  window length is 100
+    save_dir = './data/node_timeseries/simulation_bicv/swc_50_random_stable/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth')
+
+    n_subjects = 500
+    n_states = 8
+    n_samples = 1200
+    n_channels = 50
+    tr = 0.72
+
+    covariances = np.load('./data/node_timeseries/simulation_bicv/random_hrf_50/truth/state_covariances.npy')
+
+    from osl_dynamics.array_ops import get_one_hot
+
+    sim = simulation.SWC(
+        n_samples=n_samples * n_subjects,
+        n_states=n_states,
+        n_channels=n_channels,
+        stay_time=100,
+        means="zero",
+        covariances=covariances
+    )
+    data = sim.time_series
+    time_course = sim.state_time_course
+    data = data.reshape(n_subjects, -1, n_channels)
+    time_course = get_one_hot(time_course, n_states=n_states).reshape(n_subjects, -1, n_states)
+
+    np.save(f'{save_dir}truth/state_covariances.npy', covariances)
+
+    for i in range(n_subjects):
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
