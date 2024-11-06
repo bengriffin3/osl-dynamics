@@ -387,9 +387,24 @@ def test_apply_hrf():
     from osl_dynamics.array_ops import apply_hrf
     import matplotlib.pyplot as plt
 
+    # Test for a deltat function
     x = np.zeros((180,1))
     x[::90] = 1
-    y = apply_hrf(x,tr=0.72)
-    plt.plot(np.squeeze(y))
-    print(y)
+    tr = 0.72
+    y = apply_hrf(x,tr=tr)
+    plt.plot(np.arange(len(y))*tr,np.squeeze(y))
     plt.show()
+
+    # Test for unit variance.
+    N_samples = 1000000
+    means = np.array([0.0,0.0])
+    covs = np.array([[1.0,-0.5],[-0.5,1.0]])
+    samples = np.random.multivariate_normal(means, covs, N_samples)
+
+    samples_hrf = apply_hrf(samples,tr=0.72,normalize=True)
+
+    # Estimate the sample covariance matrix
+    sample_mean = np.mean(samples_hrf, axis=0)
+    sample_covariance = np.cov(samples_hrf, rowvar=False)
+    npt.assert_almost_equal(sample_mean,np.array([0.0,0.0]),decimal=2)
+    npt.assert_almost_equal(sample_covariance,covs,decimal=2)

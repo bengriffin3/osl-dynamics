@@ -6,7 +6,6 @@
 import numpy as np
 
 
-
 def get_one_hot(values, n_states=None):
     """Expand a categorical variable to a series of boolean columns
     (one-hot encoding).
@@ -433,7 +432,7 @@ def npz2list(array):
         return [array[key] for key in array.keys()]
 
 
-def demean_list(data,demean_index=-1):
+def demean_list(data, demean_index=-1):
     '''
     demean across a list of lists.
     Return the de-meaned list
@@ -451,12 +450,12 @@ def demean_list(data,demean_index=-1):
     # Check whether the input is a list
     print('#############################')
     print('We are in the function')
-    print('Demean_index is: ',demean_index)
+    print('Demean_index is: ', demean_index)
     print('############################')
     if not isinstance(data, list):
         raise TypeError('The input should be a list of lists!')
     data = np.array(data)
-    print('data shape is:',data.shape)
+    print('data shape is:', data.shape)
     if not data.ndim == 2:
         raise ValueError('The input should be a list of lists!')
     if demean_index == -1:
@@ -553,6 +552,7 @@ def estimate_gaussian_distribution(data, nonzero_means=False, keepdims=True, bia
 
     return mean, cov
 
+
 def estimate_gaussian_log_likelihood(data, means, covs, average=True):
     """
     Calculate the Gaussian log-likelihood given the data, means, and covariances.
@@ -608,6 +608,7 @@ def estimate_gaussian_log_likelihood(data, means, covs, average=True):
     else:
         return np.sum(log_likelihoods)
 
+
 def find_phi_range(D1, D2):
     # Compute eigenvalues of D1 and D2
     eigenvalues_D1 = np.linalg.eigvals(D1)
@@ -629,7 +630,8 @@ def find_phi_range(D1, D2):
     else:
         return 0.0  # If no phi satisfies the condition, the best is phi=0 (D(\phi) = D1)
 
-def hrf_function(t, alpha1=6, alpha2=16, beta1=1, beta2=1, c=1 / 6):
+
+def hrf_function(t, alpha1=6, alpha2=16, beta1=1, beta2=1, c=1/6, normalize=False):
     """
     Generates a hemodynamic response function (HRF) using a two-gamma function model.
 
@@ -647,6 +649,9 @@ def hrf_function(t, alpha1=6, alpha2=16, beta1=1, beta2=1, c=1 / 6):
         Rate parameter for the second (undershoot) gamma function (default is 1).
     c : float, optional
         Scaling factor for the second gamma function (default is 1/6).
+    normalize : bool, optional
+        If True, scales the HRF so that convolving a unit-variance signal will
+        maintain unit variance (default is False).
 
     Returns
     -------
@@ -668,10 +673,14 @@ def hrf_function(t, alpha1=6, alpha2=16, beta1=1, beta2=1, c=1 / 6):
     # HRF as the combination of both gamma functions
     hrf = gamma1 - c * gamma2
 
+    # Normalize HRF if required
+    if normalize:
+        hrf /= np.sqrt(np.sum(hrf ** 2))
+
     return hrf
 
 
-def apply_hrf(x, tr, hrf_length=30):
+def apply_hrf(x, tr, hrf_length=30, normalize=False):
     """
     Convolves an input neuronal time series with a hemodynamic response function (HRF).
 
@@ -684,6 +693,9 @@ def apply_hrf(x, tr, hrf_length=30):
         The time resolution (repetition time, TR) of the input data in seconds (default is 2.0 seconds).
     hrf_length : int, optional
         The duration of the HRF in seconds (default is 30 seconds).
+    normalize : bool, optional
+        If True, normalizes the HRF so that convolving a unit-variance signal will maintain unit variance.
+
 
     Returns
     -------
@@ -700,7 +712,7 @@ def apply_hrf(x, tr, hrf_length=30):
     from scipy.signal import convolve
     # Create time vector for HRF
     t = np.arange(0, hrf_length, tr)
-    hrf = hrf_function(t)
+    hrf = hrf_function(t,normalize=normalize)
 
     # Convolve the signal for each channel
     N_timepoints, N_channels = x.shape
