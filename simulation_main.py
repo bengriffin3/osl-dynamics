@@ -1652,8 +1652,6 @@ if __name__ == '__main__':
     if not os.path.exists(f'{save_dir}truth/'):
         os.makedirs(f'{save_dir}truth')
 
-    tpm = np.load('./results_HCP_bicv_202410/ICA_50/hmm_check/hmm_ICA_50_state_8/repeat_1/model/trans_prob.npy')
-
     n_subjects = 500
     n_states = 8
     n_samples = 1200
@@ -1666,7 +1664,8 @@ if __name__ == '__main__':
 
     sim = simulation.MSess_HMM_MVN(
         n_samples=n_samples,
-        trans_prob=tpm,
+        trans_prob='uniform',
+        stay_prob=0.9,
         session_means='zero',
         session_covariances='random',
         n_states=n_states,
