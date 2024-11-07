@@ -1645,8 +1645,9 @@ if __name__ == '__main__':
     '''
 
     ### Update 7th November 2024
-    ### Generate simulation with subject variability 50 channels, 8 states,apply real TPM
-    save_dir = './data/node_timeseries/simulation_bicv/random_sv_50/'
+    ### Generate simulation with subject variability 50 channels, 8 states,apply uniform TPM
+    ### Three groups
+    save_dir = './data/node_timeseries/simulation_bicv/random_sv_50_three_group/'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     if not os.path.exists(f'{save_dir}truth/'):
@@ -1660,6 +1661,49 @@ if __name__ == '__main__':
     spatial_embeddings_dim = 2
     embeddings_scale = 0.002
     n_groups = 3
+    between_group_scale = 0.2
+
+    sim = simulation.MSess_HMM_MVN(
+        n_samples=n_samples,
+        trans_prob='uniform',
+        stay_prob=0.9,
+        session_means='zero',
+        session_covariances='random',
+        n_states=n_states,
+        n_channels=n_channels,
+        n_sessions=n_subjects,
+        embeddings_dim=embeddings_dim,
+        spatial_embeddings_dim=spatial_embeddings_dim,
+        embeddings_scale=embeddings_scale,
+        n_groups=n_groups,
+        between_group_scale=between_group_scale
+    )
+    data = sim.time_series
+    time_course = sim.state_time_course
+    covariances = sim.obs_mod.session_covariances
+
+    for i in range(n_subjects):
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
+        np.save(f'{save_dir}/truth/{10001+i}_state_covariances.npy',covariances[i])
+
+    ### Update 7th November 2024
+    ### Generate simulation with subject variability 50 channels, 8 states,apply uniform TPM
+    ### One group
+    save_dir = './data/node_timeseries/simulation_bicv/random_sv_50_one_group/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth')
+
+    n_subjects = 500
+    n_states = 8
+    n_samples = 1200
+    n_channels = 50
+    embeddings_dim = 5
+    spatial_embeddings_dim = 2
+    embeddings_scale = 0.002
+    n_groups = 1
     between_group_scale = 0.2
 
     sim = simulation.MSess_HMM_MVN(
