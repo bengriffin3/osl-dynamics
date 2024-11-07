@@ -1680,11 +1680,8 @@ if __name__ == '__main__':
     data = sim.time_series
     time_course = sim.state_time_course
     covariances = sim.obs_mod.session_covariances
-    print(data.shape)
-    print(time_course.shape)
-    print(covariances.shape)
 
-    np.save(f'{save_dir}truth/tpm.npy', tpm)
+    #np.save(f'{save_dir}truth/tpm.npy', tpm)
 
     for i in range(n_subjects):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
