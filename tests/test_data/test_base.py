@@ -87,6 +87,8 @@ def test_standardize():
     vector = np.array([-1.5 ** 0.5,0,1.5 ** 0.5])
     input_1 = np.array([vector,vector + 10.0]).T
     input_2 = np.array([vector * 0.5 + 1.,vector * 100]).T
+
+    ### Case 1: input_1 & input_2 represent single session respectively
     data = Data([input_1,input_2])
     data.prepare({'standardize':{}})
 
@@ -99,6 +101,28 @@ def test_standardize():
     npt.assert_almost_equal(data.time_series(prepared=True)[0],np.array([vector,vector]).T)
     npt.assert_almost_equal(data.time_series(prepared=True)[1], np.array([vector, vector]).T)
     npt.assert_almost_equal(data.time_series(prepared=False),np.array([input_1,input_2]),decimal=6)
+
+    ### Case 2: input represents multiple sessions
+    input = np.concatenate((input_1,input_2),axis=0)
+    data = Data([input,input])
+    data.prepare({'standardize': {'session_length':3}})
+
+    npt.assert_almost_equal(data.arrays[0][:3], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.arrays[0][3:], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.raw_data[0][:3], input_1, decimal=6)
+    npt.assert_almost_equal(data.raw_data[0][3:], input_2, decimal=6)
+    npt.assert_almost_equal(data.arrays[1][:3], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.arrays[1][3:], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.raw_data[1][:3], input_1, decimal=6)
+    npt.assert_almost_equal(data.raw_data[1][3:], input_2, decimal=6)
+
+    # Test self.time_series()
+    npt.assert_almost_equal(data.time_series(prepared=True)[0][:3], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.time_series(prepared=True)[0][3:], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.time_series(prepared=False)[0], np.concatenate((input_1, input_2),axis=0), decimal=6)
+    npt.assert_almost_equal(data.time_series(prepared=True)[1][:3], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.time_series(prepared=True)[1][3:], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.time_series(prepared=False)[1], np.concatenate((input_1, input_2), axis=0), decimal=6)
 
 def test_prepare():
     """
