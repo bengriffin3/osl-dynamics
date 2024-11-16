@@ -586,13 +586,23 @@ def train_hmm(
         with open(f'{metric_dir}metrics.json', "w") as json_file:
             # Use json.dump to write the data to the file
             json.dump(metrics, json_file)
-    plot_line(x=np.arange(1, len(history['free_energy']) + 1),
-              y=history['free_energy'],
-              x_label='epochs',
-              y_label='free energy',
-              title='Training loss function',
-              filename=os.path.join(output_dir, 'loss_function.jpg'))
 
+    # Concatenate loss from init_history and history
+    all_losses = np.concatenate((init_history['loss'], history['loss']))
+
+    # Generate corresponding x-axis values
+    epochs = np.arange(1, len(all_losses) + 1)
+
+    # Plot the loss function
+    plot_line(
+        x=[epochs],
+        y=[all_losses],
+        labels=["Loss"],
+        x_label="Epochs",
+        y_label="Loss",
+        title="Training Loss Function",
+        filename=os.path.join(output_dir, 'loss_function.jpg')
+    )
 
 def train_dynemo(
         data,
