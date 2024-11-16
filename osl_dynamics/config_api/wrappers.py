@@ -743,6 +743,23 @@ def train_dynemo(
         save(f"{inf_params_dir}/means.npy", means)
         save(f"{inf_params_dir}/covs.npy", covs)
 
+    # Concatenate loss from init_history and history
+    all_losses = np.concatenate((init_history['loss'], history['loss']))
+
+    # Generate corresponding x-axis values
+    epochs = np.arange(1, len(all_losses) + 1)
+
+    # Plot the loss function
+    plot_line(
+        x=[epochs],
+        y=[all_losses],
+        labels=["Loss"],
+        x_label="Epochs",
+        y_label="Loss",
+        title="Training Loss Function",
+        filename=os.path.join(output_dir, 'loss_function.pdf')
+    )
+
 
 def train_hive(
         data,
