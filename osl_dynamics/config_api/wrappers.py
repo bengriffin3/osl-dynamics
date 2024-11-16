@@ -601,7 +601,7 @@ def train_hmm(
         x_label="Epochs",
         y_label="Loss",
         title="Training Loss Function",
-        filename=os.path.join(output_dir, 'loss_function.jpg')
+        filename=os.path.join(output_dir, 'loss_function.pdf')
     )
 
 def train_dynemo(
