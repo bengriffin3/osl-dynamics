@@ -2,7 +2,7 @@ import sys
 import yaml
 from osl_dynamics.config_api.batch import IndexParser, BatchTrain, batch_check
 
-def main(index,config_path,analysis_config_path=None):
+def main(index,config_path):
     '''
     This is the main function of all the analysis.
     Parameters
@@ -28,27 +28,10 @@ def main(index,config_path,analysis_config_path=None):
         batch_train.model_train()
     else:
         index_parser = IndexParser(config_batch)
-        '''
-        # Step 1: batch check whether training is successful
-        #          return the list where training is not successful
-        batch_check(config_batch)
-
-        # Step 2: if analysis_config_path is not None, implement the analayis code.
-        if analysis_config_path is not None:
-            pass
-        '''
-
-
 
 if __name__ == '__main__':
     index = int(sys.argv[1]) - 1
     config_path = sys.argv[2]
-
-    if len(sys.argv) > 3:
-        analysis_config_path = sys.argv[3]
-    else:
-        analysis_config_path = None
-
-    main(index,config_path,analysis_config_path)
+    main(index,config_path)
 
 
