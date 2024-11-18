@@ -124,10 +124,42 @@ class CVSplit:
         save_dir: str
             Directory to save the splits.
         """
-        for i, (row_train, row_test, col_train, col_test) in enumerate(self.split()):
-            np.savez(f"{save_dir}/cv_{i}_partition.npz",
-                     row_train=row_train, row_test=row_test,
-                     col_train=col_train, col_test=col_test)
+
+        # Ensure the directory exists
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        for i, split in enumerate(self.split()):
+            # Handle cases where one of split_row or split_column is missing
+            if self.row_splitter and self.column_splitter:
+                row_train, row_test, col_train, col_test = split
+                split_dict = {
+                    "row_train": sorted(row_train.tolist()),
+                    "row_test": sorted(row_test.tolist()),
+                    "column_X": sorted(col_train.tolist()),
+                    "column_Y": sorted(col_test.tolist()),
+                }
+            elif self.row_splitter:  # Only row splitting
+                row_train, row_test, _, _ = split
+                split_dict = {
+                    "row_train": sorted(row_train.tolist()),
+                    "row_test": sorted(row_test.tolist()),
+                }
+            elif self.column_splitter:  # Only column splitting
+                _, _, col_train, col_test = split
+                split_dict = {
+                    "column_X": sorted(col_train.tolist()),
+                    "column_Y": sorted(col_test.tolist()),
+                }
+            else:
+                raise ValueError("No row or column splitter is defined.")
+            print(split_dict)
+            # Save as JSON
+            file_path = os.path.join(save_dir, f"fold_indices_{i+1}.json")
+            with open(file_path, "w") as f:
+                json.dump(split_dict, f, indent=4)
+
+
 class BICVkmeans():
     def __init__(self, n_clusters, n_samples, n_channels, partition_rows=2, partition_columns=2):
         '''
@@ -1012,7 +1044,7 @@ class CVBase():
         # Initialise the class using row_indices/column_indices
         if (row_indices is not None) and (column_indices is not None):
             if isinstance(row_indices, str):
-                 row_indices= npz2list(np.load(row_indices))
+                row_indices = npz2list(np.load(row_indices))
             if isinstance(column_indices, str):
                 column_indices = npz2list(np.load(column_indices))
             self.row_indices = row_indices
@@ -1216,7 +1248,7 @@ class CVKmeans(CVBase):
             json.dump({'mse': mean_squared_diff}, file)
         return f'{save_dir}/metrics.json'
 
-    def split_column(self,config,data,column_1,column_2,spatial,save_dir=None):
+    def split_column(self, config, data, column_1, column_2, spatial, save_dir=None):
         # Specify the save directory
         if save_dir is None:
             save_dir = [os.path.join(config['save_dir'], 'column_1_spatial/'),
@@ -1226,12 +1258,11 @@ class CVKmeans(CVBase):
                 os.makedirs(dir)
 
         centre = np.load(spatial)
-        centre_1 = centre[:,column_1]
-        centre_2 = centre[:,column_2]
-        np.save(f'{save_dir[0]}/centre.npy',centre_1)
-        np.save(f'{save_dir[1]}/centre.npy',centre_2)
-        return f'{save_dir[0]}/centre.npy',f'{save_dir[1]}/centre.npy'
-
+        centre_1 = centre[:, column_1]
+        centre_2 = centre[:, column_2]
+        np.save(f'{save_dir[0]}/centre.npy', centre_1)
+        np.save(f'{save_dir[1]}/centre.npy', centre_2)
+        return f'{save_dir[0]}/centre.npy', f'{save_dir[1]}/centre.npy'
 
     def validate(self, config, data, i, j):
         row_train, row_test, column_X, column_Y = self.fold_indices(i - 1, j - 1)
@@ -1248,7 +1279,7 @@ class CVKmeans(CVBase):
                 'column_Y': column_Y
             }, f)
         if str(config['cv_variant']) == '1':
-            spatial_Y_train, temporal_Y_train = self.full_train(config, data,row_train, column_Y,
+            spatial_Y_train, temporal_Y_train = self.full_train(config, data, row_train, column_Y,
                                                                 save_dir=os.path.join(config['save_dir'], 'Y_train/'))
             spatial_X_train = self.infer_spatial(config, data, row_train, column_X, temporal_Y_train,
                                                  save_dir=os.path.join(config['save_dir'], 'X_train/'))
@@ -1444,15 +1475,12 @@ class CVHMM(CVBase):
             from osl_dynamics.array_ops import convert_arrays_to_dtype
             with open(temporal, 'rb') as file:
                 alpha = pickle.load(file)
-            alpha = convert_arrays_to_dtype(alpha,np.float16)
+            alpha = convert_arrays_to_dtype(alpha, np.float16)
             os.remove(temporal)
             with open(temporal, 'wb') as file:
                 pickle.dump(alpha, file)
 
             shutil.move(temporal, f'{save_dir}inf_params/')
-
-
-
 
         prepare_config = {}
         prepare_config['load_data'] = config['load_data']
@@ -1470,9 +1498,9 @@ class CVHMM(CVBase):
             prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_means'] = spatial['means']
             prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_covariances'] = spatial['covs']
 
-            prepare_config['log_likelihood'] = {'static_FC':False}
+            prepare_config['log_likelihood'] = {'static_FC': False}
         else:
-            prepare_config['log_likelihood'] = {'static_FC':True,'spatial':spatial}
+            prepare_config['log_likelihood'] = {'static_FC': True, 'spatial': spatial}
         # Note the 'keep_list' value is in order (from small to large number)
         prepare_config['keep_list'] = row
 
@@ -1592,6 +1620,7 @@ class CVHMM(CVBase):
         else:
             raise ValueError('Currently the cv_variant unavailable!')
 
+
 class CVSWC(CVBase):
     '''
     Bi-cross validation for Sliding Window Correlation (inherited from CVBase)
@@ -1631,7 +1660,7 @@ class CVSWC(CVBase):
         prepare_config[f'train_{config["model"]}'] = {
             'config_kwargs':
                 {key: config[key] for key in self.train_keys if key in config},
-            #'init_kwargs':
+            # 'init_kwargs':
             #    config['init_kwargs']
         }
         prepare_config[f'train_{config["model"]}']['config_kwargs']['n_channels'] = len(column)
@@ -1687,7 +1716,6 @@ class CVSWC(CVBase):
         return {'means': f'{save_dir}/dual_estimates/means.npy',
                 'covs': f'{save_dir}/dual_estimates/covs.npy'}
 
-
     def infer_temporal(self, config, row, column, spatial, save_dir=None):
 
         # Specify the save directory
@@ -1707,7 +1735,7 @@ class CVSWC(CVBase):
         shutil.copy(spatial['covs'], params_dir)
 
         # Do nothing if n_states = 1
-        #if config['n_states'] == 1:
+        # if config['n_states'] == 1:
         #    return '0'
 
         prepare_config = {}
@@ -1720,7 +1748,7 @@ class CVSWC(CVBase):
         prepare_config[f'train_{config["model"]}_temporal'] = {
             'config_kwargs':
                 {key: config[key] for key in self.train_keys if key in config},
-            #'init_kwargs':
+            # 'init_kwargs':
             #    config['init_kwargs']
         }
         # Fix the means and covariances
@@ -1735,9 +1763,7 @@ class CVSWC(CVBase):
         run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
                                save_dir)
 
-
         return f'{params_dir}/alp.pkl'
-
 
     def calculate_error(self, config, row, column, temporal, spatial, save_dir=None):
 
@@ -1753,7 +1779,7 @@ class CVSWC(CVBase):
         if os.path.exists(temporal):
             shutil.move(temporal, f'{save_dir}inf_params/')
         if os.path.exists(spatial['means']):
-            shutil.copy(spatial['means'],f'{save_dir}inf_params/')
+            shutil.copy(spatial['means'], f'{save_dir}inf_params/')
         if os.path.exists(spatial['covs']):
             shutil.copy(spatial['covs'], f'{save_dir}inf_params/')
 
@@ -1772,9 +1798,9 @@ class CVSWC(CVBase):
             prepare_config[f'train_{config["model"]}_log_likelihood']['config_kwargs']['n_channels'] = len(column)
 
         else:
-            prepare_config['log_likelihood'] = {'static_FC':True,'spatial':spatial}
-        #prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_means'] = spatial['means']
-        #prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_covariances'] = spatial['covs']
+            prepare_config['log_likelihood'] = {'static_FC': True, 'spatial': spatial}
+        # prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_means'] = spatial['means']
+        # prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_covariances'] = spatial['covs']
 
         # Note the 'keep_list' value is in order (from small to large number)
         prepare_config['keep_list'] = row
@@ -1783,9 +1809,8 @@ class CVSWC(CVBase):
             yaml.safe_dump(prepare_config, file, default_flow_style=False, sort_keys=False)
         run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
                                save_dir)
-        
-        return f'{save_dir}/metrics.json'
 
+        return f'{save_dir}/metrics.json'
 
     def split_column(self, config, column_1, column_2, spatial, save_dir=None):
         # Specify the save directory
@@ -1897,6 +1922,7 @@ class CVSWC(CVBase):
         else:
             raise ValueError('Currently the cv_variant unavailable!')
 
+
 class CVDyNeMo(CVBase):
     '''
     Bi-cross validation for DyNeMo model (inherited from CVBase)
@@ -1908,31 +1934,31 @@ class CVDyNeMo(CVBase):
                          save_dir, partition_rows, partition_columns)
         if train_keys is None:
             self.train_keys = ['n_channels',
-                          'n_states',
-                          'n_modes',
-                          'learn_means',
-                          'learn_covariances',
-                          'learn_trans_prob',
-                          'window_length',
-                          'window_offset',
-                          'initial_means',
-                          'initial_covariances',
-                          'initial_trans_prob',
-                          'sequence_length',
-                          'batch_size',
-                          'learning_rate',
-                          'n_epochs',
-                          # The followings are for Dynemo
-                          'inference_n_units',
-                          'inference_normalization',
-                          'model_n_units',
-                          'model_normalization',
-                          'learn_alpha_temperature',
-                          'initial_alpha_temperature',
-                          'do_kl_annealing',
-                          'kl_annealing_curve',
-                          'kl_annealing_sharpness',
-                          'n_kl_annealing_epochs'
+                               'n_states',
+                               'n_modes',
+                               'learn_means',
+                               'learn_covariances',
+                               'learn_trans_prob',
+                               'window_length',
+                               'window_offset',
+                               'initial_means',
+                               'initial_covariances',
+                               'initial_trans_prob',
+                               'sequence_length',
+                               'batch_size',
+                               'learning_rate',
+                               'n_epochs',
+                               # The followings are for Dynemo
+                               'inference_n_units',
+                               'inference_normalization',
+                               'model_n_units',
+                               'model_normalization',
+                               'learn_alpha_temperature',
+                               'initial_alpha_temperature',
+                               'do_kl_annealing',
+                               'kl_annealing_curve',
+                               'kl_annealing_sharpness',
+                               'n_kl_annealing_epochs'
                                ]
         else:
             self.train_keys = train_keys
@@ -2074,9 +2100,6 @@ class CVDyNeMo(CVBase):
         if os.path.exists(temporal):
             shutil.move(temporal, f'{save_dir}inf_params/')
 
-
-
-
         prepare_config = {}
         prepare_config['load_data'] = config['load_data']
 
@@ -2093,9 +2116,9 @@ class CVDyNeMo(CVBase):
             prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_means'] = spatial['means']
             prepare_config[f'build_{config["model"]}']['config_kwargs']['initial_covariances'] = spatial['covs']
 
-            prepare_config['log_likelihood'] = {'static_FC':False}
+            prepare_config['log_likelihood'] = {'static_FC': False}
         else:
-            prepare_config['log_likelihood'] = {'static_FC':True,'spatial':spatial}
+            prepare_config['log_likelihood'] = {'static_FC': True, 'spatial': spatial}
         # Note the 'keep_list' value is in order (from small to large number)
         prepare_config['keep_list'] = row
 
@@ -2172,8 +2195,8 @@ class CVDyNeMo(CVBase):
                 'column_Y': column_Y
             }, f)
         if str(config['cv_variant']) == '1':
-            spatial_Y_train, temporal_Y_train,= self.full_train(config, row_train, column_Y,
-                                                                save_dir=os.path.join(config['save_dir'], 'Y_train/'))
+            spatial_Y_train, temporal_Y_train, = self.full_train(config, row_train, column_Y,
+                                                                 save_dir=os.path.join(config['save_dir'], 'Y_train/'))
             spatial_X_train = self.infer_spatial(config, row_train, column_X, temporal_Y_train,
                                                  save_dir=os.path.join(config['save_dir'], 'X_train/'))
             temporal_X_test = self.infer_temporal(config, row_test, column_X, spatial_X_train,
