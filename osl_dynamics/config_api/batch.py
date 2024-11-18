@@ -12,6 +12,7 @@ import pickle
 import time
 import json
 from itertools import product
+import copy
 
 import yaml
 import numpy as np
@@ -163,36 +164,24 @@ class IndexParser:
         config_list = pd.read_csv(f'{self.save_dir}config_list.csv', index_col=0)
 
         # sv represents batch_variable given specific row
-        bv = config_list.iloc[index].to_dict()
+        model, n_states, mode = config_list.iloc[index]
 
         # concatenate three parts of the dictionary
-        new_config = {}
-        new_config.update(self.other_keys)
-        new_config.update(bv)
-        new_config.update(self.non_batch_variable)
+        new_config = copy.deepcopy(self.config)
+        # Preserve the correct model used here
+        value = new_config['model'].get(model)
+        new_config['model'] = {model: value} if value is not None else {}
+        new_config['n_states'] = n_states
+        new_config['mode'] = mode
 
-        root_save_dir = new_config['save_dir']
-
-        if 'n_states' in new_config:
-            state_or_mode = new_config["n_states"]
-        else:
-            state_or_mode = new_config["n_modes"]
-
-        new_config['save_dir'] = (
-            f'{new_config["save_dir"]}{new_config["model"]}'
-            f'_ICA_{new_config["n_channels"]}_state_{state_or_mode}/{new_config["mode"]}/'
-        )
-
+        ### Deal wiht the cross validation split
+        mode_name,mode_index = mode.rsplit('_',1)
         # Deal with cross validation case
-        if 'cv' in new_config['mode']:
+        if mode_name!='repeat':
             # Update the new_config['cv_kwargs']
-            new_config['cv_kwargs'] = {
-                'row_indices': f'{root_save_dir}/{new_config["mode"]}_partition/row_indices.npz',
-                'column_indices': f'{root_save_dir}/{new_config["mode"]}_partition/column_indices.npz'
-            }
-            if 'row_fold' in new_config.keys() and 'column_fold' in new_config.keys():
-                new_config[
-                    'save_dir'] = f"{new_config['save_dir']}/fold_{new_config['row_fold']}_{new_config['column_fold']}/"
+            new_config['split'] = f'{new_config["save_dir"]}/{mode_name}_partition/fold_indices_{mode_index}.json'
+        ### Update the save_dir
+        new_config['save_dir'] = f'{new_config["save_dir"]}/{model}_state_{n_states}/{mode}/'
         return new_config
 
     def _make_list(self):
