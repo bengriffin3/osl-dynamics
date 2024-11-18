@@ -153,7 +153,6 @@ class CVSplit:
                 }
             else:
                 raise ValueError("No row or column splitter is defined.")
-            print(split_dict)
             # Save as JSON
             file_path = os.path.join(save_dir, f"fold_indices_{i+1}.json")
             with open(file_path, "w") as f:
