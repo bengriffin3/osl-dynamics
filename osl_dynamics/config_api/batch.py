@@ -176,20 +176,20 @@ batch_variable:
             bcv_kwargs = mode['bcv']
             bcv = CVSplit(**bcv_kwargs)
             bcv.save(f'{self.save_dir}/bcv_partition/')
-            mode_index.append([f'bcv_{i}' for i in range(1,bcv.get_n_splits()+1)])
+            mode_index.extend([f'bcv_{i}' for i in range(1,bcv.get_n_splits()+1)])
         if 'ncv' in mode.keys():
             ncv_kwargs = mode['ncv']
             ncv = CVSplit(**ncv_kwargs)
             ncv.save(f'{self.save_dir}/ncv_partition/')
-            mode_index.append([f'ncv_{i}' for i in range(1,ncv.get_n_splits()+1)])
+            mode_index.extend([f'ncv_{i}' for i in range(1,ncv.get_n_splits()+1)])
         if 'repeat' in mode.keys():
             repeat_kwargs = mode['repeat']
-            mode_index.append([f'repeat_{i}' for i in range(1,repeat_kwargs.get('n_realizations', 3)+1)])
+            mode_index.extend([f'repeat_{i}' for i in range(1,repeat_kwargs.get('n_realizations', 3)+1)])
         if 'split' in mode.keys():
             split_kwargs = mode['split']
             split = CVSplit(**split_kwargs)
             split.save(f'{self.save_dir}/split_partition')
-            mode_index.append(split.get_n_splits())
+            mode_index.extend(split.get_n_splits())
         self.batch_variable['mode'] = mode_index
         ### Combine bcv, repeat and ncv and split
         combinations = list(product(*self.batch_variable.values()))
