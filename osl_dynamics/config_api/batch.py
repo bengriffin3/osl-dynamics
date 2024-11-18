@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from .pipeline import run_pipeline_from_file
 from ..data.base import Data
-from ..evaluate.cross_validation import CVBase, CVHMM, CVSWC, CVDyNeMo
+from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo
 from ..utils.misc import override_dict_defaults
 from ..utils.plotting import plot_box
 
@@ -100,10 +100,6 @@ batch_variable:
         self.other_keys = {key: value for key, value in config.items()
                            if key not in ['batch_variable', 'non_batch_variable']}
 
-        # Check the number of channels is set correctly.
-        if 'cv_kwargs' in self.other_keys:
-            assert self.non_batch_variable['n_channels'] == self.other_keys['cv_kwargs']['n_channels']
-
         # Check whether the save_dir exists, make directory if not
         if not os.path.exists(config['save_dir']):
             os.makedirs(config['save_dir'])
@@ -173,22 +169,32 @@ batch_variable:
         """
 
         from itertools import product
-
-        # Deal with cross validation
-        cv_count = sum(1 for item in self.batch_variable['mode'] if 'cv' in item)
-        if cv_count > 0:
-            cv_kwargs = self.other_keys['cv_kwargs']
-
-            for i in range(cv_count):
-                cv_kwargs['save_dir'] = f'{self.save_dir}/cv_{i + 1}_partition/'
-                cv = CVBase(**cv_kwargs)
-            self.batch_variable['row_fold'] = list(range(1, cv.partition_rows + 1))
-            self.batch_variable['column_fold'] = list(range(1, cv.partition_columns + 1))
+        mode_index = []
+        # Deal with bi-cross-validation
+        if 'bcv' in self.batch_variable['mode']:
+            bcv_kwargs = self.batch_variable['mode']['bcv']
+            bcv = CVSplit(**bcv_kwargs)
+            bcv.save(f'{self.save_dir}/bcv_partition/')
+            mode_index.append([f'bcv_{i}' for i in range(1,bcv.get_n_splits()+1)])
+        if 'ncv' in self.batch_variable['mode']:
+            ncv_kwargs = self.batch_variable['mode']['ncv']
+            ncv = CVSplit(**ncv_kwargs)
+            ncv.save(f'{self.save_dir}/ncv_partition/')
+            mode_index.append([f'ncv_{i}' for i in range(1,ncv.get_n_splits()+1)])
+        if 'repeat' in self.batch_variable['mode']:
+            repeat_kwargs = self.batch_variable['mode']['repeat']
+            mode_index.append([f'repeat_{i}' for i in range(1,repeat_kwargs.get('n_realizations', 3))+1])
+        if 'split' in self.batch_variable['mode']:
+            split_kwargs = self.batch_variable['mode']['split']
+            split = CVSplit(**split_kwargs)
+            split.save(f'{self.save_dir}/split_partition')
+            mode_index.append(split.get_n_splits())
+        self.batch_variable['mode'] = mode_index
+        ### Combine bcv, repeat and ncv and split
         combinations = list(product(*self.batch_variable.values()))
         # Create a DataFrame
         df = pd.DataFrame(combinations, columns=self.batch_variable.keys())
         df.to_csv(f'{self.save_dir}config_list.csv', index=True)
-
 
 class BatchTrain:
     """
