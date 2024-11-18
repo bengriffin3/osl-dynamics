@@ -188,8 +188,8 @@ batch_variable:
         if 'split' in mode.keys():
             split_kwargs = mode['split']
             split = CVSplit(**split_kwargs)
-            split.save(f'{self.save_dir}/split_partition')
-            mode_index.extend(split.get_n_splits())
+            split.save(f'{self.save_dir}/split_partition/')
+            mode_index.extend([f'split_{i}' for i in range(1,split.get_n_splits()+1)])
         self.batch_variable['mode'] = mode_index
         ### Combine bcv, repeat and ncv and split
         combinations = list(product(*self.batch_variable.values()))
