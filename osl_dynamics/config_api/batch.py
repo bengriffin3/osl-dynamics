@@ -26,67 +26,102 @@ from ..utils.plotting import plot_box
 class IndexParser:
     """
     Parse the training config file with index for batch training.
-    Typically, a root config YAML file looks like the following, where
-    batch_variable contains list of variables for different configurations
-    non_batch_variable contains all other hyperparameters for training
-    Given a training index, we need to find the specific batch_variable
-    and combine that with other non_batch variables
+    Typically, a root config YAML file looks like the following.
+    Given a training index, we need to find the specific training configurations.
+
     header:
-  # We assign a time stamp for each batch training
-  time: 2024-02-02T16:05:00.000Z
-  # Add custom notes, which will also be saved
-  note: "test whether your yaml file works"
-# where to read the data
-load_data:
-  inputs: './data/node_timeseries/simulation_202402/sigma_0.1/'
-  prepare:
-    select:
-      timepoints:
-        - 0
-        - 1200
-    standardize: {}
-# Where to save model training results
-save_dir: './results_yaml_test/'
-# where to load the spatial map and spatial surface map
-spatial_map: './data/spatial_maps/'
-non_batch_variable:
-  n_channels: 25
-  sequence_length: 600
-  learn_means: false
-  learn_covariances: true
-  learn_trans_prob: true
-  learning_rate: 0.01
-  n_epochs: 30
-  split_strategy: random
-  init_kwargs:
-    n_init: 10
-    n_epochs: 2
-# The following variables have lists for batch training
-batch_variable:
-  model:
-    - 'hmm'
-    - 'dynemo'
-    - 'mdyenmo'
-    - 'swc'
-  n_states: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
-  # Mode can be: train, repeat, split, cross_validation
-  mode:
-    - train
-    - repeat_1
-    - repeat_2
-    - repeat_3
-    - repeat_4
-    - repeat_5
-    - split_1
-    - split_2
-    - split_3
-    - split_4
-    - split_5
-    - cv_1
-    - cv_2
-    - cv_3
-    - cv_4
-    - cv_5
+    # We assign a time stamp for each batch training
+    time: 2024-11-18T17:00:00.000Z
+    # Add custom notes, which will also be saved
+    note: "Training configuration for HCP data (ICA=50), bi-cross-validation(bcv),repeat,split and naive cross-validation (ncv)"
+    # where to read the data
+    load_data:
+      inputs: './data/node_timeseries/3T_HCP1200_MSMAll_d50_ts2/'
+      prepare:
+        select:
+          timepoints:
+            - 0
+            - 4800
+        standardize:
+          session_length: 1200
+      kwargs:
+        load_memmaps: True
+    # Where to save model training results
+    save_dir: './results_final/real/ICA_50/'
+    # where to load the spatial map and spatial surface map
+    spatial_map: './data/spatial_maps/groupICA_3T_HCP1200_MSMAll_d50.ica'
+    model:
+      hmm:
+        n_channels: 50
+        sequence_length: 400
+        batch_size: 256
+        learn_means: false
+        learn_covariances: true
+        learn_trans_prob: true
+        learning_rate: 0.001
+        n_epochs: 30
+        init_kwargs:
+          n_init: 10
+          n_epochs: 2
+      dynemo:
+        n_channels: 50
+        sequence_length: 100
+        inference_n_units: 64
+        inference_normalization: layer
+        model_n_units: 64
+        model_normalization: layer
+        learn_alpha_temperature: True
+        initial_alpha_temperature: 1.0
+        learn_means: False
+        learn_covariances: True
+        do_kl_annealing: True
+        kl_annealing_curve: tanh
+        kl_annealing_sharpness: 5
+        n_kl_annealing_epochs: 15
+        batch_size: 64
+        learning_rate: 0.001
+        n_epochs: 30
+        init_kwargs:
+          n_init: 10
+          n_epochs: 2
+      swc:
+        n_channels: 50
+        learn_means: False
+        learn_covariances: True
+        window_length: 100
+        window_offset: 100
+    n_states: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+    # Mode can be: bi-cross-validatioin(bcv),repeat,naive cross validation (ncv) and split
+    mode:
+      bcv:
+        split_row:
+          n_samples: 1003
+          method: ShuffleSplit
+          method_kwargs:
+            n_splits: 100
+            train_size: 0.8
+        split_column:
+          n_samples: 50
+          method: ShuffleSplit
+          method_kwargs:
+            n_splits: 100
+            train_size: 0.5
+        strategy: pairing
+      repeat:
+        n_realizations: 3
+      ncv:
+        split_row:
+          n_samples: 1003
+          method: KFold
+          method_kwargs:
+            n_splits: 5
+      split:
+        split_row:
+          n_samples: 1003
+          method: ShuffleSplit
+          method_kwargs:
+            n_splits: 5
+            train_size: 0.5
     """
 
     def __init__(self, config: dict):
@@ -95,10 +130,11 @@ batch_variable:
         time.sleep(random.uniform(0., 2.))
 
         self.save_dir = config['save_dir']
-        self.batch_variable = config['batch_variable']
-        self.non_batch_variable = config['non_batch_variable']
-        self.other_keys = {key: value for key, value in config.items()
-                           if key not in ['batch_variable', 'non_batch_variable']}
+        self.config = config
+        #self.batch_variable = config['batch_variable']
+        #self.non_batch_variable = config['non_batch_variable']
+        #self.other_keys = {key: value for key, value in config.items()
+        #                   if key not in ['batch_variable', 'non_batch_variable']}
 
         # Check whether the save_dir exists, make directory if not
         if not os.path.exists(config['save_dir']):
@@ -107,7 +143,6 @@ batch_variable:
         if not os.path.exists(f'{self.save_dir}config_root.yaml'):
             with open(f'{self.save_dir}config_root.yaml', 'w') as file:
                 yaml.dump(config, file, default_flow_style=False)
-
         # Check if the config list file exists, create if not
         if not os.path.exists(f'{self.save_dir}config_list.csv'):
             self._make_list()
@@ -163,13 +198,13 @@ batch_variable:
     def _make_list(self):
         """
         Make the list of batch variables with respect to index,
-        and save them to f'{self.header["save_dir"]}config_list.xlsx'
+        and save them to f'{self.header["save_dir"]}config_list.csv'
         Returns
         -------
         """
 
         from itertools import product
-        mode = self.batch_variable['mode']
+        mode = self.config['mode']
         mode_index = []
         # Deal with bi-cross-validation
         if 'bcv' in mode.keys():
@@ -190,11 +225,11 @@ batch_variable:
             split = CVSplit(**split_kwargs)
             split.save(f'{self.save_dir}/split_partition/')
             mode_index.extend([f'split_{i}' for i in range(1,split.get_n_splits()+1)])
-        self.batch_variable['mode'] = mode_index
-        ### Combine bcv, repeat and ncv and split
-        combinations = list(product(*self.batch_variable.values()))
-        # Create a DataFrame
-        df = pd.DataFrame(combinations, columns=self.batch_variable.keys())
+        model_index = self.config['model'].keys()
+        n_states = self.config['n_states']
+        ### Combine model, mode and n_states
+        combinations = list(product(model_index, n_states,mode_index))
+        df = pd.DataFrame(combinations, columns=['model_index', 'n_states','mode_index'])
         df.to_csv(f'{self.save_dir}config_list.csv', index=True)
 
 class BatchTrain:
