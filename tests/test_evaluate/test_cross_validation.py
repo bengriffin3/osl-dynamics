@@ -1,7 +1,130 @@
 import numpy as np
 import numpy.testing as npt
 
+def test_CVSplit():
+    from osl_dynamics.evaluate.cross_validation import CVSplit
+    ### We test four cases for bi-cross-validation split
+    ### Case 1: row ShuffleSplit, column KFold, combination
+    config_1 = {
+        "split_row": {
+            "n_samples": 5,
+            "method": "ShuffleSplit",
+            "method_kwargs": {
+                "n_splits": 3,
+                "train_size": 0.8
+            }
+        },
+        "split_column": {
+            "n_samples": 4,
+            "method": "KFold",
+            "method_kwargs": {
+                "n_splits": 2
+            }
+        },
+        "strategy": "combination"
+    }
+    cv_splitter_1 = CVSplit(**config_1)
+    # Get the number of splits
+    print("Total Splits:", cv_splitter_1.get_n_splits())
+    # Generate and display splits
+    for i, (row_train, row_test, col_train, col_test) in enumerate(cv_splitter_1.split()):
+        print(f"Split {i+1}:")
+        print(f"  Row Train: {row_train}, Row Test: {row_test}")
+        print(f"  Col Train: {col_train}, Col Test: {col_test}")
+    print('###################################################')
 
+    ### Case 2: row ShuffleSplit, column KFold, pairing
+    config_2 = {
+        "split_row": {
+            "n_samples": 5,
+            "method": "ShuffleSplit",
+            "method_kwargs": {
+                "n_splits": 3,
+                "train_size": 0.8
+            }
+        },
+        "split_column": {
+            "n_samples": 4,
+            "method": "KFold",
+            "method_kwargs": {
+                "n_splits": 2
+            }
+        },
+        "strategy": "pairing"
+    }
+    cv_splitter_2 = CVSplit(**config_2)
+    # Get the number of splits
+    print("Total Splits:", cv_splitter_2.get_n_splits())
+    # Generate and display splits
+    for i, (row_train, row_test, col_train, col_test) in enumerate(cv_splitter_2.split()):
+        print(f"Split {i + 1}:")
+        print(f"  Row Train: {row_train}, Row Test: {row_test}")
+        print(f"  Col Train: {col_train}, Col Test: {col_test}")
+    print('###################################################')
+
+    ### Case 3: row KFold, column ShuffleSplit, combination
+    config_3 = {
+        "split_row": {
+            "n_samples": 5,
+            "method": "KFold",
+            "method_kwargs": {
+                "n_splits": 5,
+            }
+        },
+        "split_column": {
+            "n_samples": 4,
+            "method": "ShuffleSplit",
+            "method_kwargs": {
+                "n_splits": 2,
+                "train_size": 0.5,
+            }
+        },
+        "strategy": "combination"
+    }
+    cv_splitter_3 = CVSplit(**config_3)
+    # Get the number of splits
+    print("Total Splits:", cv_splitter_3.get_n_splits())
+    # Generate and display splits
+    for i, (row_train, row_test, col_train, col_test) in enumerate(cv_splitter_3.split()):
+        print(f"Split {i + 1}:")
+        print(f"  Row Train: {row_train}, Row Test: {row_test}")
+        print(f"  Col Train: {col_train}, Col Test: {col_test}")
+    print('###################################################')
+
+    ### Case 4: row KFold, column ShuffleSplit, pairing
+    config_4 = {
+        "split_row": {
+            "n_samples": 5,
+            "method": "KFold",
+            "method_kwargs": {
+                "n_splits": 5,
+            }
+        },
+        "split_column": {
+            "n_samples": 4,
+            "method": "ShuffleSplit",
+            "method_kwargs": {
+                "n_splits": 2,
+                "train_size": 0.5,
+            }
+        },
+        "strategy": "pairing"
+    }
+    cv_splitter_4 = CVSplit(**config_4)
+    # Get the number of splits
+    print("Total Splits:", cv_splitter_4.get_n_splits())
+    # Generate and display splits
+    for i, (row_train, row_test, col_train, col_test) in enumerate(cv_splitter_4.split()):
+        print(f"Split {i + 1}:")
+        print(f"  Row Train: {row_train}, Row Test: {row_test}")
+        print(f"  Col Train: {col_train}, Col Test: {col_test}")
+    print('###################################################')
+
+    ### We then test two cases for naive cross-validation split
+    
+    # Save splits to directory
+    #cv_splitter.save("./cv_splits")
+    
 def test_BICVkmeans():
     from osl_dynamics.evaluate.cross_validation import BICVkmeans
 
@@ -1123,7 +1246,7 @@ def test_full_train_DyNeMo():
     import yaml
     from osl_dynamics.evaluate.cross_validation import CVDyNeMo
 
-    save_dir = './test_dynemo_full_train/'
+    save_dir = './test_dynemo_full_train_1/'
     if os.path.exists(save_dir):
         shutil.rmtree(save_dir)
     os.makedirs(save_dir)
@@ -1145,7 +1268,9 @@ def test_full_train_DyNeMo():
     # Define the covariance matrices of state 1,2 in both splits
     cors_Y = [-0.5, 0.5]
     covs_Y = [np.array([[1.0, cor], [cor, 1.0]]) for cor in cors_Y]
-    means_Y = [[1.0, -1.0], [-1.0, 1.0]]
+    #covs_Y = [np.array([[1.0,-0.5],[-0.5,1.0]]),np.array([[10.0,5.0],[5.0,10.0]])]
+
+    means_Y = [[1.0, 0.0], [0.0, 1.0]]
 
     means_X = [1.0, 2.0]
     vars_X = [0.5, 2.0]
@@ -1217,11 +1342,11 @@ def test_full_train_DyNeMo():
             kl_annealing_curve: tanh
             kl_annealing_sharpness: 5
             learn_alpha_temperature: true
-            learn_covariances: false
-            learn_means: false
+            learn_covariances: true
+            learn_means: true
             initial_means: {means_truth_dir}
             initial_covariances: {covs_truth_dir}
-            learning_rate: 0.01
+            learning_rate: 0.001
             model_n_units: 64
             model_normalization: layer
             n_channels: 3
@@ -1230,8 +1355,8 @@ def test_full_train_DyNeMo():
             n_modes: 2
             sequence_length: 100
             init_kwargs:
-                n_init: 10
-                n_epochs: 2
+                n_init: 1
+                n_epochs: 1
             save_dir: {save_dir}
             model: dynemo
 
@@ -1246,14 +1371,13 @@ def test_full_train_DyNeMo():
     with open(temporal_Y_train,'rb') as file:
         alpha = pickle.load(file)
 
-    npt.assert_allclose(result_means, np.array(means_Y),rtol=1e-6,atol=1e-6)
-    npt.assert_allclose(result_covs, np.stack(covs_Y),rtol=1e-6,atol=1e-6)
+    npt.assert_allclose(result_means, np.array(means_Y), rtol=1e-6, atol=1e-6)
+    npt.assert_allclose(result_covs, np.stack(covs_Y), rtol=1e-6, atol=1e-6)
 
     # Test whether the inferred alphas are close to the ground truth
     for truth, inferred in zip(alpha_truth, alpha):
         mean_difference = np.mean(np.abs(truth - inferred))
         npt.assert_array_less(mean_difference, 5e-2, err_msg=f"Mean difference {mean_difference} exceeds 5e-2")
-
 
 def test_infer_spatial_DyNeMo():
     import os

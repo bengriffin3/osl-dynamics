@@ -7,6 +7,7 @@ from collections import OrderedDict
 import numpy as np
 from sklearn.cluster import KMeans
 from scipy.spatial.distance import cdist
+from sklearn.model_selection import ShuffleSplit, KFold
 
 from ..config_api.pipeline import run_pipeline_from_file
 from ..config_api.wrappers import load_data
@@ -14,6 +15,119 @@ from ..inference.modes import argmax_time_courses
 from ..array_ops import npz2list
 
 
+class CVSplit:
+    """
+    A class to split rows and columns in (bi-)cross-validation
+
+    Parameters
+    ----------
+    split_row: dict, optional
+        Configuration for row splitting.
+    split_column: dict, optional
+        Configuration for column splitting.
+    strategy: str
+        "combination" or "pairing" to combine row and column splits.
+    kwargs: Additional configurations (e.g., random_state).
+    """
+
+    def __init__(self, split_row=None, split_column=None, strategy="combination", **kwargs):
+        self.split_row = split_row
+        self.split_column = split_column
+        self.strategy = strategy
+        self.kwargs = kwargs
+
+        # Validate input
+        if strategy not in ["combination", "pairing"]:
+            raise ValueError("Strategy must be 'combination' or 'pairing'.")
+        if not (split_row or split_column):
+            raise ValueError("At least one of split_row or split_column must be provided.")
+
+        # Initialize row and column splitters
+        self.row_splitter = self._init_splitter(split_row) if split_row else None
+        self.column_splitter = self._init_splitter(split_column) if split_column else None
+
+    def _init_splitter(self, split_config):
+        """
+        Initialize a cross-validation splitter (ShuffleSplit or KFold).
+
+        Parameters
+        ----------
+        split_config: dict
+            Configuration for the splitter.
+
+        Returns
+        -------
+        Tuple[object, int]
+            Initialized splitter and the number of samples.
+        """
+        n_samples = split_config["n_samples"]
+        method = split_config.get("method", "ShuffleSplit")
+        method_kwargs = split_config.get("method_kwargs", {})
+
+        if method == "ShuffleSplit":
+            splitter = ShuffleSplit(n_splits=method_kwargs["n_splits"],
+                                    train_size=method_kwargs["train_size"],
+                                    **self.kwargs)
+        elif method == "KFold":
+            splitter = KFold(n_splits=method_kwargs["n_splits"], **self.kwargs)
+        else:
+            raise ValueError("Unsupported cross-validation method: use 'ShuffleSplit' or 'KFold'.")
+
+        return splitter, n_samples
+
+    def split(self):
+        """
+        Generate splits for rows and columns.
+
+        Yields
+        ------
+        Tuple[np.ndarray, np.ndarray]
+            Train and test indices for rows and columns.
+        """
+        row_splits = list(self.row_splitter[0].split(range(self.row_splitter[1]))) if self.row_splitter else [([], [])]
+        column_splits = list(
+            self.column_splitter[0].split(range(self.column_splitter[1]))) if self.column_splitter else [([], [])]
+
+        if self.strategy == "combination":
+            for row_train, row_test in row_splits:
+                for col_train, col_test in column_splits:
+                    yield row_train, row_test, col_train, col_test
+        elif self.strategy == "pairing":
+            n_splits = min(len(row_splits), len(column_splits))
+            for i in range(n_splits):
+                yield (*row_splits[i], *column_splits[i])
+
+    def get_n_splits(self):
+        """
+        Get the total number of splits based on the pairing strategy.
+
+        Returns
+        -------
+        int
+            Total number of cross-validation realizations.
+        """
+        row_splits = len(list(self.row_splitter[0].split(range(self.row_splitter[1])))) if self.row_splitter else 1
+        column_splits = len(
+            list(self.column_splitter[0].split(range(self.column_splitter[1])))) if self.column_splitter else 1
+
+        if self.strategy == "combination":
+            return row_splits * column_splits
+        elif self.strategy == "pairing":
+            return min(row_splits, column_splits)
+
+    def save(self, save_dir):
+        """
+        Save the splits to disk.
+
+        Parameters
+        ----------
+        save_dir: str
+            Directory to save the splits.
+        """
+        for i, (row_train, row_test, col_train, col_test) in enumerate(self.split()):
+            np.savez(f"{save_dir}/cv_{i}_partition.npz",
+                     row_train=row_train, row_test=row_test,
+                     col_train=col_train, col_test=col_test)
 class BICVkmeans():
     def __init__(self, n_clusters, n_samples, n_channels, partition_rows=2, partition_columns=2):
         '''
