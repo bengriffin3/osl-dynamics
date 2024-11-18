@@ -32,8 +32,6 @@ def main(index,config_path):
 if __name__ == '__main__':
     index = int(sys.argv[1]) - 1
     config_path = sys.argv[2]
-    index = 0
-    config_path = './results_final/real/config_HCP.yaml'
     main(index,config_path)
 
 

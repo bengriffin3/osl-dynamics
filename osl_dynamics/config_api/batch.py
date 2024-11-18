@@ -169,23 +169,24 @@ batch_variable:
         """
 
         from itertools import product
+        mode = self.batch_variable['mode']
         mode_index = []
         # Deal with bi-cross-validation
-        if 'bcv' in self.batch_variable['mode']:
-            bcv_kwargs = self.batch_variable['mode']['bcv']
+        if 'bcv' in mode.keys():
+            bcv_kwargs = mode['bcv']
             bcv = CVSplit(**bcv_kwargs)
             bcv.save(f'{self.save_dir}/bcv_partition/')
             mode_index.append([f'bcv_{i}' for i in range(1,bcv.get_n_splits()+1)])
-        if 'ncv' in self.batch_variable['mode']:
-            ncv_kwargs = self.batch_variable['mode']['ncv']
+        if 'ncv' in mode.keys():
+            ncv_kwargs = mode['ncv']
             ncv = CVSplit(**ncv_kwargs)
             ncv.save(f'{self.save_dir}/ncv_partition/')
             mode_index.append([f'ncv_{i}' for i in range(1,ncv.get_n_splits()+1)])
-        if 'repeat' in self.batch_variable['mode']:
-            repeat_kwargs = self.batch_variable['mode']['repeat']
-            mode_index.append([f'repeat_{i}' for i in range(1,repeat_kwargs.get('n_realizations', 3))+1])
-        if 'split' in self.batch_variable['mode']:
-            split_kwargs = self.batch_variable['mode']['split']
+        if 'repeat' in mode.keys():
+            repeat_kwargs = mode['repeat']
+            mode_index.append([f'repeat_{i}' for i in range(1,repeat_kwargs.get('n_realizations', 3)+1)])
+        if 'split' in mode.keys():
+            split_kwargs = mode['split']
             split = CVSplit(**split_kwargs)
             split.save(f'{self.save_dir}/split_partition')
             mode_index.append(split.get_n_splits())
