@@ -171,9 +171,10 @@ class IndexParser:
         # Preserve the correct model used here
         value = new_config['model'].get(model)
         new_config['model'] = {model: value} if value is not None else {}
-        new_config['n_states'] = int(n_states)
-        new_config['model'][model]['n_states'] = int(n_states)
-        new_config['model'][model]['n_modes'] = int(n_states)
+        if model!='dynemo':
+            new_config['n_states'] = int(n_states)
+        else:
+            new_config['n_modes'] = int(n_states)
         new_config['mode'] = mode
 
         ### Deal wiht the cross validation split
@@ -293,6 +294,11 @@ class BatchTrain:
         model, model_kwargs = next(iter(self.config['model'].items()))
 
         prepare_config[f'train_{model}'] = model_kwargs
+
+        if model!='dynemo':
+            prepare_config[f'train_{model}']['config_kwargs']['n_states'] = self.config['n_states']
+        else:
+            prepare_config[f'train_{model}']['config_kwargs']['n_modes'] = self.config['n_modes']
 
         if "split" in self.config["mode"]:
             '''
