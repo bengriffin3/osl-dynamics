@@ -154,7 +154,7 @@ class CVSplit:
             else:
                 raise ValueError("No row or column splitter is defined.")
             # Save as JSON
-            file_path = os.path.join(save_dir, f"fold_indices_{i+1}.json")
+            file_path = os.path.join(save_dir, f"fold_indices_{i + 1}.json")
             with open(file_path, "w") as f:
                 json.dump(split_dict, f, indent=4)
 
@@ -1618,6 +1618,154 @@ class CVHMM(CVBase):
                                           save_dir=os.path.join(config['save_dir'], 'Y_test/'))
         else:
             raise ValueError('Currently the cv_variant unavailable!')
+
+
+class BCV():
+    '''
+    Updated 20th November 2024
+    The latest (potentially final) version to implement bi-cross-validation
+    '''
+
+    def __init__(self, config):
+        '''
+        Define the configuration for bi-cross-validation
+        Include: model training details, where to find the sample/channel indices, save_dir
+        '''
+        if not os.path.exists(config['save_dir']):
+            os.makedirs(config['save_dir'])
+        self.save_dir = config['save_dir']
+        self.indices = config['indices']
+        self.load_data = config['load_data']
+        self.model, self.model_kwargs = next(iter(config['model'].items()))
+
+        with open(config['indices'], 'r') as file:
+            indices = json.load(file)
+        self.row_train = indices['row_train']
+        self.row_test = indices['row_test']
+        self.column_X = indices.get('column_X', None)
+        self.column_Y = indices.get('column_Y', None)
+
+        self.cv_variant = str(config.get('cv_variant', '1'))
+
+    def full_train(self, row, column, save_dir=None):
+        # Specify the save directory
+        if save_dir is None:
+            save_dir = os.path.join(self.save_dir, 'full_train/')
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        prepare_config = {}
+        prepare_config['load_data'] = self.load_data
+
+        # If select key is not specificed before
+        if 'select' not in prepare_config['load_data']['prepare'].keys():
+            prepare_config['load_data']['prepare']['select'] = {}
+        prepare_config['load_data']['prepare']['select']['channels'] = column
+
+        prepare_config[f'train_{self.model}'] = self.model_kwargs
+        prepare_config[f'train_{self.model}']['config_kwargs']['n_channels'] = len(column)
+        prepare_config['keep_list'] = row
+
+        with open(f'{save_dir}/prepared_config.yaml', 'w') as file:
+            yaml.safe_dump(prepare_config, file, default_flow_style=False)
+        run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',save_dir)
+        params_dir = f'{save_dir}/inf_params/'
+        return {'means': f'{params_dir}/means.npy','covs': f'{params_dir}/covs.npy'}, f'{params_dir}/alp.pkl'
+
+    def infer_spatial(self, row, column, temporal, save_dir=None):
+        # Specify the save directory
+        if save_dir is None:
+            save_dir = os.path.join(self.save_dir, 'infer_spatial/')
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        # Do nothing if n_states = 1
+        if self.model_kwargs['config_kwargs']['n_states'] == 1:
+            return '0'
+
+        # Create a new directory "config['save_dir']/X_train/inf_params
+        if not os.path.exists(f'{save_dir}inf_params/'):
+            os.makedirs(f'{save_dir}inf_params/')
+
+        shutil.move(temporal, f'{save_dir}inf_params/')
+
+        prepare_config = {}
+        prepare_config['load_data'] = self.load_data
+
+        if 'select' not in prepare_config['load_data']['prepare'].keys():
+            prepare_config['load_data']['prepare']['select'] = {}
+        prepare_config['load_data']['prepare']['select']['channels'] = column
+
+        prepare_config[f'build_{self.model}'] = self.model_kwargs
+        prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
+        prepare_config['dual_estimation'] = {'concatenate': True}
+
+        # Note the 'keep_list' value is in order (from small to large number)
+        prepare_config['keep_list'] = row
+
+        with open(f'{save_dir}/prepared_config.yaml', 'w') as file:
+            yaml.safe_dump(prepare_config, file, default_flow_style=False, sort_keys=False)
+
+        run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
+                               save_dir)
+
+        # Compress the representation of alp.pkl file
+        if os.path.exists(f'{save_dir}inf_params/alp.pkl'):
+            from osl_dynamics.inference.modes import prob2onehot
+            with open(f'{save_dir}inf_params/alp.pkl', 'rb') as file:
+                alpha = pickle.load(file)
+            alpha = prob2onehot(alpha)
+            os.remove(f'{save_dir}inf_params/alp.pkl')
+            with open(f'{save_dir}inf_params/alp.pkl', 'wb') as file:
+                pickle.dump(alpha, file)
+
+        return {'means': f'{save_dir}/dual_estimates/means.npy',
+                'covs': f'{save_dir}/dual_estimates/covs.npy'}
+
+
+def validate(self):
+    if self.cv_variant == '1':
+        spatial_Y_train, temporal_Y_train = self.full_train(self.row_train, self.column_Y,
+                                                            save_dir=os.path.join(self.save_dir, 'Y_train/'))
+        spatial_X_train = self.infer_spatial(self.row_train, self.column_X, temporal_Y_train,
+                                             save_dir=os.path.join(self.save_dir, 'X_train/'))
+        temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
+                                              save_dir=os.path.join(self.save_dir, 'X_test/'))
+        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
+    elif self.cv_variant == '2':
+        spatial_X_train, temporal_X_train = self.full_train(self.row_train, self.column_X,
+                                                            save_dir=os.path.join(self.save_dir, 'X_train/'))
+        spatial_Y_train = self.infer_spatial(self.row_train, self.column_Y, temporal_X_train,
+                                             save_dir=os.path.join(self.save_dir, 'Y_train/'))
+        temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
+                                              save_dir=os.path.join(self.save_dir, 'X_test/'))
+        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
+    elif self.cv_variant == '3':
+        spatial_XY_train, _ = self.full_train(self.row_train, sorted(self.column_X + self.column_Y),
+                                              save_dir=os.path.join(self.save_dir, 'XY_train/'))
+        spatial_X_train, spatial_Y_train = self.split_column(self.column_X, self.column_Y, spatial_XY_train,
+                                                             save_dir=[os.path.join(self.save_dir, 'X_train/'),
+                                                                       os.path.join(self.save_dir, 'Y_train/')]
+                                                             )
+        temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
+                                              save_dir=os.path.join(self.save_dir, 'X_test/'))
+        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
+    elif self.cv_variant == '4':
+        _, temporal_X_traintest = self.full_train(sorted(self.row_train + self.row_test), self.column_X,
+                                                  save_dir=os.path.join(self.save_dir, 'X_traintest/'))
+        temporal_X_train, temporal_X_test = self.split_row(self.row_train, self.row_test, temporal_X_traintest,
+                                                           save_dir=[os.path.join(self.save_dir, 'X_train/'),
+                                                                     os.path.join(self.save_dir, 'X_test/')])
+        spatial_Y_train = self.infer_spatial(self.row_train, self.column_Y, temporal_X_train,
+                                             save_dir=os.path.join(self.save_dir, 'Y_train/'))
+        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
+    else:
+        raise ValueError('Currently the cv_variant unavailable!')
+
+    pass
 
 
 class CVSWC(CVBase):
