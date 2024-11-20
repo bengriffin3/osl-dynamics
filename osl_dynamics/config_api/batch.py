@@ -308,17 +308,17 @@ class BatchTrain:
             with open(self.config['indices'],'r') as file:
                 indices_list = list(json.load(file).values())
             for i in range(len(indices_list)):
-                temp_save_dir = f'{self.config["save_dir"]}split_{i + 1}/'
+                temp_save_dir = f'{self.config["save_dir"]}partition_{i + 1}/'
                 if not os.path.exists(temp_save_dir):
                     os.makedirs(temp_save_dir)
-                with open(f'{temp_save_dir}/indices_{i+1}.json','r') as file:
+                with open(f'{temp_save_dir}/indices_{i+1}.json','w') as file:
                     json.dump(indices_list[i],file)
                 prepare_config['keep_list'] = f'{temp_save_dir}/indices_{i + 1}.json'
                 with open(f'{temp_save_dir}prepared_config.yaml', 'w') as file:
                     yaml.safe_dump(prepare_config, file, default_flow_style=False)
                 run_pipeline_from_file(f'{temp_save_dir}prepared_config.yaml',
                                        temp_save_dir)
-        if "naive_validation" in self.config["mode"]:
+        elif "ncv" in self.config["mode"]:
             from osl_dynamics.models import load
             from osl_dynamics.config_api.wrappers import load_data
             free_energy_list = []
@@ -361,7 +361,7 @@ class BatchTrain:
                 json.dump(free_energy_list, f)
 
 
-        elif "cv" in self.config["mode"]:
+        elif "bcv" in self.config["mode"]:
             self.config['train_keys'] = self.train_keys
             if self.config['model'] == 'hmm':
                 cv = CVHMM(**self.config['cv_kwargs'])
@@ -396,11 +396,13 @@ class BatchTrain:
                                    self.config['save_dir'])
             '''
 
-        else:
+        elif 'repeat' in self.config["mode"]:
             with open(f'{self.config["save_dir"]}prepared_config.yaml', 'w') as file:
                 yaml.safe_dump(prepare_config, file, default_flow_style=False)
             run_pipeline_from_file(f'{self.config["save_dir"]}prepared_config.yaml',
                                    self.config["save_dir"])
+        else:
+            raise ValueError('Configuration mode must contain bcv, ncv, split or repeat!')
     '''
     def select_indice(self, ratio=0.5,fold_number=2):
         if "n_sessions" not in self.config:
