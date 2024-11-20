@@ -171,7 +171,9 @@ class IndexParser:
         # Preserve the correct model used here
         value = new_config['model'].get(model)
         new_config['model'] = {model: value} if value is not None else {}
-        new_config['n_states'] = n_states
+        new_config['n_states'] = int(n_states)
+        new_config['model'][model]['n_states'] = int(n_states)
+        new_config['model'][model]['n_modes'] = int(n_states)
         new_config['mode'] = mode
 
         ### Deal wiht the cross validation split
@@ -179,7 +181,7 @@ class IndexParser:
         # Deal with cross validation case
         if mode_name!='repeat':
             # Update the new_config['cv_kwargs']
-            new_config['split'] = f'{new_config["save_dir"]}/{mode_name}_partition/fold_indices_{mode_index}.json'
+            new_config['indices'] = f'{new_config["save_dir"]}/{mode_name}_partition/fold_indices_{mode_index}.json'
         ### Update the save_dir
         new_config['save_dir'] = f'{new_config["save_dir"]}/{model}_state_{n_states}/{mode}/'
         return new_config
@@ -226,6 +228,7 @@ class BatchTrain:
     Convert a batch training configuration file to another config
     for training pipeline
     """
+    '''
     mode_key_default = 'mode'
 
     train_keys_default = ['n_channels',
@@ -255,18 +258,18 @@ class BatchTrain:
                           'kl_annealing_sharpness',
                           'n_kl_annealing_epochs'
                           ]
-
+    '''
     def __init__(self, config: dict, train_keys=None):
-        self.train_keys = self.train_keys_default if train_keys is None else train_keys
+        #self.train_keys = self.train_keys_default if train_keys is None else train_keys
 
         # Validate the configuration file
         if 'load_data' not in config:
             raise ValueError('No data directory specified!')
         # The default mode of 'mode' is train
-        if 'mode' not in config:
-            config['mode'] = 'train'
-        if 'init_kwargs' not in config:
-            config['init_kwargs'] = {}
+        #if 'mode' not in config:
+        #    config['mode'] = 'train'
+        #if 'init_kwargs' not in config:
+        #    config['init_kwargs'] = {}
         # Check whether save directory is specified
         if 'save_dir' not in config:
             raise ValueError('Saving directory not specified!')
@@ -278,39 +281,39 @@ class BatchTrain:
                 yaml.safe_dump(config, file, default_flow_style=False)
         self.config = config
 
-    def model_train(self, cv_ratio=0.25,k_fold=5):
+    def model_train(self,):
         '''
         Batch model train method
-        cv_ration: float,optional
-           the proportion of sessions to use as the training data
         Returns
         -------
         '''
         prepare_config = {}
         prepare_config['load_data'] = self.config['load_data']
 
-        prepare_config[f'train_{self.config["model"]}'] = {
-            'config_kwargs':
-                {key: self.config[key] for key in self.train_keys if key in self.config},
-            'init_kwargs':
-                self.config['init_kwargs']
-        }
+        model, model_kwargs = next(iter(self.config['model'].items()))
+
+        prepare_config[f'train_{model}'] = model_kwargs
 
         if "split" in self.config["mode"]:
+            '''
             # We need to know how many sessions in advance
-            indice_1, indice_2 = self.select_indice()
+            indice_1, indice_2 =s self.select_indice()
 
             # Save the selected and remaining indices to JSON files
             with open(f'{self.config["save_dir"]}indices_1.json', 'w') as json_file:
                 json.dump(indice_1, json_file)
             with open(f'{self.config["save_dir"]}indices_2.json', 'w') as json_file:
                 json.dump(indice_2, json_file)
-
-            for i in range(0, 2):
-                temp_save_dir = f'{self.config["save_dir"]}half_{i + 1}/'
+            '''
+            with open(self.config['indices'],'r') as file:
+                indices_list = list(json.load(file).values())
+            for i in range(len(indices_list)):
+                temp_save_dir = f'{self.config["save_dir"]}split_{i + 1}/'
                 if not os.path.exists(temp_save_dir):
                     os.makedirs(temp_save_dir)
-                prepare_config['keep_list'] = f'{self.config["save_dir"]}indices_{i + 1}.json'
+                with open(f'{temp_save_dir}/indices_{i+1}.json','r') as file:
+                    json.dump(indices_list[i],file)
+                prepare_config['keep_list'] = f'{temp_save_dir}/indices_{i + 1}.json'
                 with open(f'{temp_save_dir}prepared_config.yaml', 'w') as file:
                     yaml.safe_dump(prepare_config, file, default_flow_style=False)
                 run_pipeline_from_file(f'{temp_save_dir}prepared_config.yaml',
@@ -398,7 +401,7 @@ class BatchTrain:
                 yaml.safe_dump(prepare_config, file, default_flow_style=False)
             run_pipeline_from_file(f'{self.config["save_dir"]}prepared_config.yaml',
                                    self.config["save_dir"])
-
+    '''
     def select_indice(self, ratio=0.5,fold_number=2):
         if "n_sessions" not in self.config:
             data = Data(self.config["load_data"]["inputs"])
@@ -427,6 +430,7 @@ class BatchTrain:
             random.shuffle(all_indices)
             folds = np.array_split(all_indices, fold_number)
             return [fold.tolist() for fold in folds]
+   '''
 
 def batch_check(config: dict):
     '''
