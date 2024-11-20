@@ -301,16 +301,6 @@ class BatchTrain:
             prepare_config[f'train_{model}']['config_kwargs']['n_modes'] = self.config['n_modes']
 
         if "split" in self.config["mode"]:
-            '''
-            # We need to know how many sessions in advance
-            indice_1, indice_2 =s self.select_indice()
-
-            # Save the selected and remaining indices to JSON files
-            with open(f'{self.config["save_dir"]}indices_1.json', 'w') as json_file:
-                json.dump(indice_1, json_file)
-            with open(f'{self.config["save_dir"]}indices_2.json', 'w') as json_file:
-                json.dump(indice_2, json_file)
-            '''
             with open(self.config['indices'],'r') as file:
                 indices_list = list(json.load(file).values())
             for i in range(len(indices_list)):
@@ -376,32 +366,6 @@ class BatchTrain:
             elif self.config['model'] == 'dynemo':
                 cv = CVDyNeMo(**self.config['cv_kwargs'])
             cv.validate(self.config, self.config['row_fold'], self.config['column_fold'])
-            '''
-            indice_all = self.select_indice(ratio=cv_ratio)
-
-            # Save the selected and remaining indices to JSON files
-            for i in range(len(indice_all)):
-                with open(f'{self.config["save_dir"]}indices_{i+1}.json', 'w') as json_file:
-                    json.dump(indice_all[i], json_file)
-
-            for i in range(0,2):
-                temp_save_dir = f'{self.config["save_dir"]}half_{i+1}/'
-                if not os.path.exists(temp_save_dir):
-                    os.makedirs(temp_save_dir)
-                prepare_config['keep_list'] = f'{self.config["save_dir"]}indices_{i+1}.json'
-                with open(f'{temp_save_dir}prepared_config.yaml', 'w') as file:
-                    yaml.safe_dump(prepare_config, file, default_flow_style=False)
-                run_pipeline_from_file(f'{temp_save_dir}prepared_config.yaml',
-                                      temp_save_dir)
-
-            
-            prepare_config['keep_list'] = f'{self.config["save_dir"]}indices_train.json'
-            with open(f'{self.config["save_dir"]}prepared_config.yaml', 'w') as file:
-                yaml.safe_dump(prepare_config, file, default_flow_style=False)
-            run_pipeline_from_file(f'{self.config["save_dir"]}prepared_config.yaml',
-                                   self.config['save_dir'])
-            '''
-
         elif 'repeat' in self.config["mode"]:
             with open(f'{self.config["save_dir"]}prepared_config.yaml', 'w') as file:
                 yaml.safe_dump(prepare_config, file, default_flow_style=False)
@@ -409,36 +373,6 @@ class BatchTrain:
                                    self.config["save_dir"])
         else:
             raise ValueError('Configuration mode must contain bcv, ncv, split or repeat!')
-    '''
-    def select_indice(self, ratio=0.5,fold_number=2):
-        if "n_sessions" not in self.config:
-            data = Data(self.config["load_data"]["inputs"])
-            n_sessions = len(data.arrays)
-        else:
-            n_sessions = self.config["n_sessions"]
-
-        all_indices = list(range(n_sessions))
-
-        # Check if the ratio is 0.5
-        if fold_number == 2:
-            if ratio == 0.5:
-                # Randomly select indices without replacement
-                selected_indices = random.sample(all_indices, int(n_sessions * ratio))
-                # Calculate the remaining indices
-                remaining_indices = list(set(all_indices) - set(selected_indices))
-                return selected_indices, remaining_indices
-            elif ratio == 0.25:
-                # Randomly split indices into four chunks
-                random.shuffle(all_indices)
-                chunk_size = int(n_sessions * ratio)
-                chunks = [all_indices[i:i + chunk_size] for i in range(0, n_sessions, chunk_size)]
-                return chunks
-        else:
-            # Split the whole session into "fold_number" folds
-            random.shuffle(all_indices)
-            folds = np.array_split(all_indices, fold_number)
-            return [fold.tolist() for fold in folds]
-   '''
 
 def batch_check(config: dict):
     '''
