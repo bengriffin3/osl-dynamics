@@ -1813,50 +1813,50 @@ class BCV():
                                save_dir)
         return f'{save_dir}/metrics.json'
 
-def validate(self):
-    if self.cv_variant == '1':
-        spatial_Y_train, temporal_Y_train = self.full_train(self.row_train, self.column_Y,
-                                                            save_dir=os.path.join(self.save_dir, 'Y_train/'))
-        spatial_X_train = self.infer_spatial(self.row_train, self.column_X, temporal_Y_train,
-                                             save_dir=os.path.join(self.save_dir, 'X_train/'))
-        temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
-                                              save_dir=os.path.join(self.save_dir, 'X_test/'))
-        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
-                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
-    elif self.cv_variant == '2':
-        spatial_X_train, temporal_X_train = self.full_train(self.row_train, self.column_X,
-                                                            save_dir=os.path.join(self.save_dir, 'X_train/'))
-        spatial_Y_train = self.infer_spatial(self.row_train, self.column_Y, temporal_X_train,
-                                             save_dir=os.path.join(self.save_dir, 'Y_train/'))
-        temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
-                                              save_dir=os.path.join(self.save_dir, 'X_test/'))
-        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
-                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
-    elif self.cv_variant == '3':
-        spatial_XY_train, _ = self.full_train(self.row_train, sorted(self.column_X + self.column_Y),
-                                              save_dir=os.path.join(self.save_dir, 'XY_train/'))
-        spatial_X_train, spatial_Y_train = self.split_column(self.column_X, self.column_Y, spatial_XY_train,
-                                                             save_dir=[os.path.join(self.save_dir, 'X_train/'),
-                                                                       os.path.join(self.save_dir, 'Y_train/')]
-                                                             )
-        temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
-                                              save_dir=os.path.join(self.save_dir, 'X_test/'))
-        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
-                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
-    elif self.cv_variant == '4':
-        _, temporal_X_traintest = self.full_train(sorted(self.row_train + self.row_test), self.column_X,
-                                                  save_dir=os.path.join(self.save_dir, 'X_traintest/'))
-        temporal_X_train, temporal_X_test = self.split_row(self.row_train, self.row_test, temporal_X_traintest,
-                                                           save_dir=[os.path.join(self.save_dir, 'X_train/'),
-                                                                     os.path.join(self.save_dir, 'X_test/')])
-        spatial_Y_train = self.infer_spatial(self.row_train, self.column_Y, temporal_X_train,
-                                             save_dir=os.path.join(self.save_dir, 'Y_train/'))
-        metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
-                                      save_dir=os.path.join(self.save_dir, 'Y_test/'))
-    else:
-        raise ValueError('Currently the cv_variant unavailable!')
+    def validate(self):
+        if self.cv_variant == '1':
+            spatial_Y_train, temporal_Y_train = self.full_train(self.row_train, self.column_Y,
+                                                                save_dir=os.path.join(self.save_dir, 'Y_train/'))
+            spatial_X_train = self.infer_spatial(self.row_train, self.column_X, temporal_Y_train,
+                                                 save_dir=os.path.join(self.save_dir, 'X_train/'))
+            temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
+                                                  save_dir=os.path.join(self.save_dir, 'X_test/'))
+            metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                          save_dir=os.path.join(self.save_dir, 'Y_test/'))
+        elif self.cv_variant == '2':
+            spatial_X_train, temporal_X_train = self.full_train(self.row_train, self.column_X,
+                                                                save_dir=os.path.join(self.save_dir, 'X_train/'))
+            spatial_Y_train = self.infer_spatial(self.row_train, self.column_Y, temporal_X_train,
+                                                 save_dir=os.path.join(self.save_dir, 'Y_train/'))
+            temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
+                                                  save_dir=os.path.join(self.save_dir, 'X_test/'))
+            metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                          save_dir=os.path.join(self.save_dir, 'Y_test/'))
+        elif self.cv_variant == '3':
+            spatial_XY_train, _ = self.full_train(self.row_train, sorted(self.column_X + self.column_Y),
+                                                  save_dir=os.path.join(self.save_dir, 'XY_train/'))
+            spatial_X_train, spatial_Y_train = self.split_column(self.column_X, self.column_Y, spatial_XY_train,
+                                                                 save_dir=[os.path.join(self.save_dir, 'X_train/'),
+                                                                           os.path.join(self.save_dir, 'Y_train/')]
+                                                                 )
+            temporal_X_test = self.infer_temporal(self.row_test, self.column_X, spatial_X_train,
+                                                  save_dir=os.path.join(self.save_dir, 'X_test/'))
+            metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                          save_dir=os.path.join(self.save_dir, 'Y_test/'))
+        elif self.cv_variant == '4':
+            _, temporal_X_traintest = self.full_train(sorted(self.row_train + self.row_test), self.column_X,
+                                                      save_dir=os.path.join(self.save_dir, 'X_traintest/'))
+            temporal_X_train, temporal_X_test = self.split_row(self.row_train, self.row_test, temporal_X_traintest,
+                                                               save_dir=[os.path.join(self.save_dir, 'X_train/'),
+                                                                         os.path.join(self.save_dir, 'X_test/')])
+            spatial_Y_train = self.infer_spatial(self.row_train, self.column_Y, temporal_X_train,
+                                                 save_dir=os.path.join(self.save_dir, 'Y_train/'))
+            metric = self.calculate_error(self.row_test, self.column_Y, temporal_X_test, spatial_Y_train,
+                                          save_dir=os.path.join(self.save_dir, 'Y_test/'))
+        else:
+            raise ValueError('Currently the cv_variant unavailable!')
 
-    pass
+        pass
 
 
 class CVSWC(CVBase):

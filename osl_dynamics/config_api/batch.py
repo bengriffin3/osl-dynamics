@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from .pipeline import run_pipeline_from_file
 from ..data.base import Data
-from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo
+from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo, BCV
 from ..utils.misc import override_dict_defaults
 from ..utils.plotting import plot_box
 
@@ -358,7 +358,9 @@ class BatchTrain:
 
 
         elif "bcv" in self.config["mode"]:
-            self.config['train_keys'] = self.train_keys
+            bcv = BCV(self.config)
+            bcv.validate()
+            '''
             if self.config['model'] == 'hmm':
                 cv = CVHMM(**self.config['cv_kwargs'])
             elif self.config['model'] == 'swc':
@@ -366,6 +368,7 @@ class BatchTrain:
             elif self.config['model'] == 'dynemo':
                 cv = CVDyNeMo(**self.config['cv_kwargs'])
             cv.validate(self.config, self.config['row_fold'], self.config['column_fold'])
+            '''
         elif 'repeat' in self.config["mode"]:
             with open(f'{self.config["save_dir"]}prepared_config.yaml', 'w') as file:
                 yaml.safe_dump(prepare_config, file, default_flow_style=False)
