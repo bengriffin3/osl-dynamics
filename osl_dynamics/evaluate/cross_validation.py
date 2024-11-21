@@ -1702,7 +1702,7 @@ class BCV():
             prepare_config['load_data']['prepare']['select'] = {}
         prepare_config['load_data']['prepare']['select']['channels'] = column
 
-        prepare_config[f'build_{self.model}'] = self.model_kwargs
+        prepare_config[f'build_{self.model}']['config_kwargs'] = self.model_kwargs['config_kwargs']
         prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
         prepare_config['dual_estimation'] = {'concatenate': True}
 
@@ -1797,7 +1797,7 @@ class BCV():
         prepare_config['load_data']['prepare']['select']['channels'] = column
 
         if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes', None)):
-            prepare_config[f'build_{self.model}'] = self.model_kwargs
+            prepare_config[f'build_{self.model}']['config_kwargs'] = self.model_kwargs['config_kwargs']
             prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
             prepare_config[f'build_{self.model}']['config_kwargs']['initial_means'] = spatial['means']
             prepare_config[f'build_{self.model}']['config_kwargs']['initial_covariances'] = spatial['covs']
