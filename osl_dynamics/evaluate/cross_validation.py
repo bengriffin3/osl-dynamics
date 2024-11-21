@@ -1626,7 +1626,7 @@ class BCV():
     The latest (potentially final) version to implement bi-cross-validation
     '''
 
-    def __init__(self, config):
+    def __init__(self, config, n_temp_save=5):
         '''
         Define the configuration for bi-cross-validation
         Include: model training details, where to find the sample/channel indices, save_dir
@@ -1646,6 +1646,13 @@ class BCV():
         self.column_Y = indices.get('column_Y', None)
 
         self.cv_variant = str(config.get('cv_variant', '1'))
+
+        ### In bi-cross-validation, we preserve n_temp_save realisations of the time courses
+        _, bcv_index = config['mode'].rsplit("_", 1)
+        if bcv_index > n_temp_save:
+            self.save_temp = False
+        else:
+            self.save_temp = True
 
     def full_train(self, row, column, save_dir=None):
         # Specify the save directory
@@ -1668,9 +1675,9 @@ class BCV():
 
         with open(f'{save_dir}/prepared_config.yaml', 'w') as file:
             yaml.safe_dump(prepare_config, file, default_flow_style=False)
-        run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',save_dir)
+        run_pipeline_from_file(f'{save_dir}/prepared_config.yaml', save_dir)
         params_dir = f'{save_dir}/inf_params/'
-        return {'means': f'{params_dir}/means.npy','covs': f'{params_dir}/covs.npy'}, f'{params_dir}/alp.pkl'
+        return {'means': f'{params_dir}/means.npy', 'covs': f'{params_dir}/covs.npy'}, f'{params_dir}/alp.pkl'
 
     def infer_spatial(self, row, column, temporal, save_dir=None):
         # Specify the save directory
@@ -1678,8 +1685,8 @@ class BCV():
             save_dir = os.path.join(self.save_dir, 'infer_spatial/')
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        # Do nothing if n_states = 1
-        if self.model_kwargs['config_kwargs']['n_states'] == 1:
+        # Do nothing if n_states = 1 or n_modes = 1
+        if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes')) == 1:
             return '0'
 
         # Create a new directory "config['save_dir']/X_train/inf_params
@@ -1708,6 +1715,10 @@ class BCV():
         run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
                                save_dir)
 
+        # Delete the time courses if self.save_temp is False
+        if not self.save_temp:
+            os.remove(f'{save_dir}/inf_params/alp.pkl')
+        '''
         # Compress the representation of alp.pkl file
         if os.path.exists(f'{save_dir}inf_params/alp.pkl'):
             from osl_dynamics.inference.modes import prob2onehot
@@ -1717,10 +1728,90 @@ class BCV():
             os.remove(f'{save_dir}inf_params/alp.pkl')
             with open(f'{save_dir}inf_params/alp.pkl', 'wb') as file:
                 pickle.dump(alpha, file)
-
+        '''
         return {'means': f'{save_dir}/dual_estimates/means.npy',
                 'covs': f'{save_dir}/dual_estimates/covs.npy'}
 
+    def infer_temporal(self, row, column, spatial, save_dir=None):
+        # Specify the save directory
+        if save_dir is None:
+            save_dir = os.path.join(self.save_dir, 'infer_temporal/')
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        # Do nothing if n_states = 1 or n_modes = 1
+        if self.model_kwargs['config_kwargs'].get('n_states',self.model_kwargs['config_kwargs'].get('n_modes')) == 1:
+            return '0'
+
+        prepare_config = {}
+        prepare_config['load_data'] = self.load_data
+
+        if 'select' not in prepare_config['load_data']['prepare'].keys():
+            prepare_config['load_data']['prepare']['select'] = {}
+        prepare_config['load_data']['prepare']['select']['channels'] = column
+
+        prepare_config[f'train_{self.model}'] = self.model_kwargs
+        prepare_config[f'train_{self.model}']['config_kwargs']['n_channels'] = len(column)
+        prepare_config['keep_list'] = row
+
+        # Fix the means and covariances
+        prepare_config[f'train_{self.model}']['config_kwargs']['learn_means'] = False
+        prepare_config[f'train_{self.model}']['config_kwargs']['learn_covariances'] = False
+        prepare_config[f'train_{self.model}']['config_kwargs']['initial_means'] = spatial['means']
+        prepare_config[f'train_{self.model}']['config_kwargs']['initial_covariances'] = spatial['covs']
+
+        with open(f'{save_dir}/prepared_config.yaml', 'w') as file:
+            yaml.safe_dump(prepare_config, file, default_flow_style=False)
+        run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
+                               save_dir)
+        params_dir = f'{save_dir}/inf_params/'
+        return f'{params_dir}/alp.pkl'
+
+    def calculate_error(self, row, column, temporal, spatial, save_dir=None):
+        # Specify the save directory
+        if save_dir is None:
+            save_dir = os.path.join(self.save_dir, 'calculate_error/')
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        if not os.path.exists(f'{save_dir}inf_params/'):
+            os.makedirs(f'{save_dir}inf_params/')
+        '''
+        # Compress the file
+        if os.path.exists(temporal):
+            from osl_dynamics.array_ops import convert_arrays_to_dtype
+            with open(temporal, 'rb') as file:
+                alpha = pickle.load(file)
+            alpha = convert_arrays_to_dtype(alpha, np.float16)
+            os.remove(temporal)
+            with open(temporal, 'wb') as file:
+                pickle.dump(alpha, file)
+        '''
+        shutil.move(temporal, f'{save_dir}inf_params/')
+
+        prepare_config = {}
+        prepare_config['load_data'] = self.load_data
+
+        if 'select' not in prepare_config['load_data']['prepare'].keys():
+            prepare_config['load_data']['prepare']['select'] = {}
+        prepare_config['load_data']['prepare']['select']['channels'] = column
+
+        if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes', None)):
+            prepare_config[f'build_{self.model}'] = self.model_kwargs
+            prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
+            prepare_config[f'build_{self.model}']['config_kwargs']['initial_means'] = spatial['means']
+            prepare_config[f'build_{self.model}']['config_kwargs']['initial_covariances'] = spatial['covs']
+            prepare_config['log_likelihood'] = {'static_FC': False}
+        else:
+            prepare_config['log_likelihood'] = {'static_FC': True, 'spatial': spatial}
+        # Note the 'keep_list' value is in order (from small to large number)
+        prepare_config['keep_list'] = row
+
+        with open(f'{save_dir}/prepared_config.yaml', 'w') as file:
+            yaml.safe_dump(prepare_config, file, default_flow_style=False, sort_keys=False)
+        run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
+                               save_dir)
+        return f'{save_dir}/metrics.json'
 
 def validate(self):
     if self.cv_variant == '1':
