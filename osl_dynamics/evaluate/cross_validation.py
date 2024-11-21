@@ -1648,7 +1648,7 @@ class BCV():
         self.cv_variant = str(config.get('cv_variant', '1'))
 
         ### In bi-cross-validation, we preserve n_temp_save realisations of the time courses
-        _, bcv_index = config['mode'].rsplit("_", 1)
+        _, bcv_index = int(config['mode'].rsplit("_", 1))
         if bcv_index > n_temp_save:
             self.save_temp = False
         else:
