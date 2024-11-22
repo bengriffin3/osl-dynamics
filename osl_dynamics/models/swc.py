@@ -67,6 +67,10 @@ class Config(BaseModelConfig):
         Should we make the mean vectors for each state trainable?
     learn_covariances : bool
         Should we make the covariance matrix for each staet trainable?
+    initial_means : np.ndarray or str
+        Initialisation for state means. String indicated the *.npy directory.
+    initial_covariances : np.ndarray or str
+        Initialisation for state covariances. String is the *.npy directory.
     diagonal_covariances : bool
         Should we learn diagonal covariances?
     covariances_epsilon : float
@@ -81,6 +85,8 @@ class Config(BaseModelConfig):
     window_type: str = 'rectangular'
     learn_means: bool = None
     learn_covariances: bool = None
+    initial_means: Union[np.ndarray, str] = None
+    initial_covariances: Union[np.ndarray, str] = None
     diagonal_covariances: bool = False
     covariances_epsilon: float = None
 
@@ -138,7 +144,20 @@ class Model(ModelBase):
     config_type = Config
 
     def build_model(self):
-        pass
+        if self.config.initial_means is None:
+            self.means = np.zeros((self.config.n_states,self.config.n_channels))
+        else:
+            if isinstance(self.config.initial_means,str):
+                self.config.initial_means = np.load(self.config.initial_means)
+            self.means = self.config.initial_means
+
+        if self.config.initial_covariances is None:
+            self.covariances = np.zeros((self.config.n_states,self.config.n_channels,self.config.n_channels))
+        else:
+            if isinstance(self.config.initial_covariances,str):
+                self.config.initial_covariances = np.load(self.config.initial_covariances)
+            self.covariances = self.config.initial_covariances
+
 
     def fit(self, dataset, verbose=1, **kwargs):
         ts = dataset.time_series()
@@ -152,7 +171,7 @@ class Model(ModelBase):
         kmeans = KMeans(n_clusters=self.config.n_states, verbose=verbose)
 
         # Get indices that correspond to an upper triangle of a matrix
-        # (not including the diagonal)
+        # Include the diagonal.
         i, j = np.triu_indices(self.config.n_channels, k=0)
 
         # Now let's convert the sliding window connectivity matrices to a series of vectors
@@ -257,3 +276,7 @@ class Model(ModelBase):
         return average_log_likelihood
     def compile(self, optimizer=None):
         pass
+
+    def save_weights(self,dir):
+        np.save(f'{dir}/means.npy',self.means)
+        np.save(f'{dir}/covs.npy',self.covariances)
