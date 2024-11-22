@@ -1619,6 +1619,49 @@ class CVHMM(CVBase):
         else:
             raise ValueError('Currently the cv_variant unavailable!')
 
+class NCV():
+    '''
+    Update 22th November 2024
+    The latest (potentially final) version to implement bi-cross-validation
+    '''
+    def __init__(self,config):
+        if not os.path.exists(config['save_dir']):
+            os.makedirs(config['save_dir'])
+        self.save_dir = config['save_dir']
+        self.indices = config['indices']
+        self.load_data = config['load_data']
+        self.model, self.model_kwargs = next(iter(config['model'].items()))
+
+        with open(config['indices'], 'r') as file:
+            indices = json.load(file)
+        self.row_train = indices['row_train']
+        self.row_test = indices['row_test']
+
+    def train(self):
+        prepare_config = {}
+        prepare_config['load_data'] = self.load_data
+        prepare_config[f'train_{self.model}'] = self.model_kwargs
+        prepare_config['keep_list'] = self.row_train
+
+        with open(f'{self.save_dir}/prepared_config.yaml', 'w') as file:
+            yaml.safe_dump(prepare_config, file, default_flow_style=False)
+        run_pipeline_from_file(f'{self.save_dir}/prepared_config.yaml', self.save_dir)
+
+        return f'{self.save_dir}/model/'
+    def naive_validation(self):
+        prepare_config = {}
+        prepare_config['load_data'] = self.load_data
+        prepare_config['free_energy'] = {}
+        prepare_config['keep_list'] = self.row_train
+
+
+    def validate(self):
+        if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes')) > 1:
+            self.train()
+            self.naive_validation()
+
+
+
 
 class BCV():
     '''
@@ -1664,7 +1707,7 @@ class BCV():
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
 
-        # If select key is not specificed before
+        # If select key is not specified before
         if 'select' not in prepare_config['load_data']['prepare'].keys():
             prepare_config['load_data']['prepare']['select'] = {}
         prepare_config['load_data']['prepare']['select']['channels'] = column

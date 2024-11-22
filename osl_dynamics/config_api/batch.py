@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from .pipeline import run_pipeline_from_file
 from ..data.base import Data
-from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo, BCV
+from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo, BCV, NCV
 from ..utils.misc import override_dict_defaults
 from ..utils.plotting import plot_box
 
@@ -315,8 +315,12 @@ class BatchTrain:
                 run_pipeline_from_file(f'{temp_save_dir}prepared_config.yaml',
                                        temp_save_dir)
         elif "ncv" in self.config["mode"]:
+            ncv = NCV(self.config)
+            ncv.validate()
+            '''
             from osl_dynamics.models import load
             from osl_dynamics.config_api.wrappers import load_data
+
             free_energy_list = []
             indices = self.select_indice(fold_number=k_fold)
             for i in range(k_fold):
@@ -355,7 +359,7 @@ class BatchTrain:
                     json.dump([(free_energy)], f)
             with open(f'{self.config["save_dir"]}naive_cv_free_energy.json', 'w') as f:
                 json.dump(free_energy_list, f)
-
+            '''
 
         elif "bcv" in self.config["mode"]:
             bcv = BCV(self.config)

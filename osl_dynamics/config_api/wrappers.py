@@ -195,7 +195,28 @@ def build_dynemo(
     _logger.info(f"Saving model to: {model_dir}")
     model.save(model_dir)
 
+def build_swc(
+        data,
+        output_dir,
+        config_kwargs
+):
+    """
+    Build up a Sliding Window Correlation Model.
+    """
+    from osl_dynamics.models import swc
 
+    # Create the model object
+    _logger.info("Building model")
+    default_config_kwargs = {
+        "n_channels": data.n_channels,
+        "window_length": 100,
+        "window_offset": 75,
+        "window_type": 'rectangular',
+        'learn_means': False,
+        'learn_covariances': True
+    }
+    config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
+    _logger.info(f"Using config_kwargs: {config_kwargs}")
 def train_swc(
         data,
         output_dir,
@@ -1268,6 +1289,36 @@ def log_likelihood(data, output_dir, static_FC=False, spatial=None):
     # Save
     with open(f"{output_dir}metrics.json", "w") as file:
         json.dump({'log_likelihood': metrics}, file)
+
+def free_energy(data, output_dir):
+    """free energy estimation for the data.
+
+    This function expects a model has already been trained and the following
+    directories to exist:
+
+    - :code:`<output_dir>/model`, which contains the trained model.
+
+    This function will create the following file:
+
+    - :code:`<output_dir>/metrics.json`, which contains the average log-likelihood
+    per session
+
+    Parameters
+    ----------
+    data : osl_dynamics.data.Data
+        Data object.
+    output_dir : str
+        Path to output directory.
+    """
+    from osl_dynamics import models
+    if data is None:
+        raise ValueError("data must be passed.")
+
+    model_dir = f"{output_dir}/model/"
+    model = models.load(model_dir)
+    free_energy = float(model.free_energy(data))
+    with open(f'{output_dir}ncv_free_energy.json', 'w') as f:
+        json.dump([free_energy], f)
 
 
 def multitaper_spectra(data, output_dir, kwargs, nnmf_components=None):
