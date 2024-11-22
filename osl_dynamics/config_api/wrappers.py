@@ -217,6 +217,12 @@ def build_swc(
     }
     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
     _logger.info(f"Using config_kwargs: {config_kwargs}")
+    config = swc.Config(**config_kwargs)
+    model = swc.Model(config)
+    # Save trained model
+    model_dir = f'{output_dir}/model/'
+    _logger.info(f"Saving model to: {model_dir}")
+    model.save(model_dir)
 def train_swc(
         data,
         output_dir,
@@ -288,6 +294,8 @@ def train_swc(
     save(f"{inf_params_dir}/alp.pkl", alpha)
     save(f"{inf_params_dir}/means.npy", means)
     save(f"{inf_params_dir}/covs.npy", covs)
+
+    model.save(f'{output_dir}/model/')
 
 
 def train_swc_spatial(
