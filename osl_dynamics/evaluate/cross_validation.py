@@ -1652,8 +1652,11 @@ class NCV():
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
         prepare_config['free_energy'] = {}
-        prepare_config['keep_list'] = self.row_train
+        prepare_config['keep_list'] = self.row_test
 
+        with open(f'{self.save_dir}/prepared_ncv_config.yaml', 'w') as file:
+            yaml.safe_dump(prepare_config, file, default_flow_style=False)
+        run_pipeline_from_file(f'{self.save_dir}/prepared_ncv_config.yaml', self.save_dir)
 
     def validate(self):
         if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes')) > 1:
