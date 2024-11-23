@@ -14,6 +14,7 @@ from osl_dynamics.models import (
     hmm_poi,
     hive,
     dive,
+    swc
 )
 from osl_dynamics.utils.misc import NumpyLoader
 
@@ -27,6 +28,7 @@ models = {
     "HMM-Poisson": hmm_poi.Model,
     "HIVE": hive.Model,
     "DIVE": dive.Model,
+    "SWC": swc.Model
 }
 
 

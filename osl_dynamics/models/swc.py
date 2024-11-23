@@ -282,3 +282,11 @@ class Model(ModelBase):
             os.makedirs(dir)
         np.save(f'{dir}/means.npy',self.means)
         np.save(f'{dir}/covs.npy',self.covariances)
+
+    def load_weights(self,dir):
+        try:
+            self.means = np.load(f'{dir}/means.npy')
+        except FileNotFoundError:
+            self.means = np.zeros((self.config.n_states, self.config.n_channels))
+
+        self.covariances = np.load(f'{dir}/covs.npy')
