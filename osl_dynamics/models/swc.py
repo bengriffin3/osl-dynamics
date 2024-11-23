@@ -152,7 +152,7 @@ class Model(ModelBase):
             self.means = self.config.initial_means
 
         if self.config.initial_covariances is None:
-            self.covariances = np.zeros((self.config.n_states,self.config.n_channels,self.config.n_channels))
+            self.covariances = np.array([np.eye(self.config.n_channels) for _ in range(self.config.n_states)])
         else:
             if isinstance(self.config.initial_covariances,str):
                 self.config.initial_covariances = np.load(self.config.initial_covariances)
@@ -278,5 +278,7 @@ class Model(ModelBase):
         pass
 
     def save_weights(self,dir):
+        if not os.path.exists(dir):
+            os.makedirs(dir)
         np.save(f'{dir}/means.npy',self.means)
         np.save(f'{dir}/covs.npy',self.covariances)
