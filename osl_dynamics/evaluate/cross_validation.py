@@ -1834,7 +1834,8 @@ class BCV():
             with open(temporal, 'wb') as file:
                 pickle.dump(alpha, file)
         '''
-        shutil.move(temporal, f'{save_dir}inf_params/')
+        if os.path.exists(temporal):
+            shutil.move(temporal, f'{save_dir}inf_params/')
 
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
@@ -1843,7 +1844,7 @@ class BCV():
             prepare_config['load_data']['prepare']['select'] = {}
         prepare_config['load_data']['prepare']['select']['channels'] = column
 
-        if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes', None)):
+        if self.model_kwargs['config_kwargs'].get('n_states', self.model_kwargs['config_kwargs'].get('n_modes', None)) > 1:
             prepare_config[f'build_{self.model}'] = {}
             prepare_config[f'build_{self.model}']['config_kwargs'] = self.model_kwargs['config_kwargs']
             prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
