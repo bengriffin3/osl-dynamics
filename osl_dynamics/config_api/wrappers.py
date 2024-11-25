@@ -405,7 +405,7 @@ def train_swc_temporal(
         pickle.dump(alpha, file)
     return f'{inf_params_dir}/alp.pkl'
 
-
+'''
 def train_swc_log_likelihood(
         data,
         output_dir,
@@ -460,7 +460,7 @@ def train_swc_log_likelihood(
     with open(f'{output_dir}/metrics.json', 'w') as file:
         json.dump({'log_likelihood':float(metrics)}, file)
     return f'{output_dir}/metrics.json'
-
+'''
 
 def train_hmm(
         data,

@@ -70,6 +70,7 @@ def test_train_swc():
                 inputs: {data_dir}
             train_swc:
                 config_kwargs:
+                    n_channels: 2
                     n_states: 3
                     learn_means: False
                     learn_covariances: True
@@ -102,15 +103,14 @@ def test_train_swc():
     npt.assert_array_equal(covs_answer, reordered_covs)
     npt.assert_array_equal(labels_answer, reordered_labels)
 
-def test_train_swc_spatial():
+def test_swc_infer_spatial():
     import os
     import pickle
     import shutil
     import yaml
-    from osl_dynamics.config_api.wrappers import train_swc
     from osl_dynamics.config_api.pipeline import run_pipeline_from_file
 
-    save_dir = './test_train_swc_spatial/'
+    save_dir = './test_swc_infer_spatial/'
     data_dir = f'{save_dir}/data/'
     output_dir = f'{save_dir}/result/'
 
@@ -148,13 +148,16 @@ def test_train_swc_spatial():
     config = f"""
             load_data:
                 inputs: {data_dir}
-            train_swc_spatial:
-                config_kwargs:
-                    n_states: 3
-                    learn_means: False
-                    learn_covariances: True
-                    window_length: 5
-                    window_offset: 3
+            build_swc:
+              config_kwargs:
+                n_states: 3
+                learn_means: False
+                learn_covariances: True
+                window_length: 5
+                window_offset: 3
+            dual_estimation:
+              concatenate: True
+                
                 """
     labels = [np.array([0, 1]), np.array([1, 2])]
     if not os.path.exists(f'{output_dir}/inf_params/'):
@@ -176,15 +179,14 @@ def test_train_swc_spatial():
     npt.assert_array_equal(means,np.zeros((3,2)))
     npt.assert_array_equal(covs_answer, covs)
 
-def test_train_swc_temporal():
+def test_swc_infer_temporal():
     import os
     import pickle
     import shutil
     import yaml
-    from osl_dynamics.config_api.wrappers import train_swc
     from osl_dynamics.config_api.pipeline import run_pipeline_from_file
 
-    save_dir = './test_train_swc_temporal/'
+    save_dir = './test_swc_infer_temporal/'
     data_dir = f'{save_dir}/data/'
     output_dir = f'{save_dir}/result/'
 
@@ -230,14 +232,19 @@ def test_train_swc_temporal():
     np.save(f'{inf_params_dir}/means.npy',means)
     np.save(f'{inf_params_dir}/covs.npy',covs)
 
+    means_dir = f'{inf_params_dir}/means.npy'
+    covs_dir = f'{inf_params_dir}/covs.npy'
     config = f"""
             load_data:
                 inputs: {data_dir}
-            train_swc_temporal:
+            train_swc:
                 config_kwargs:
+                    n_channels: 2
                     n_states: 3
                     learn_means: False
-                    learn_covariances: True
+                    learn_covariances: False
+                    initial_means: {means_dir}
+                    initial_covariances: {covs_dir}
                     window_length: 5
                     window_offset: 3
                 """
@@ -253,16 +260,15 @@ def test_train_swc_temporal():
 
     npt.assert_array_equal(labels_answer,labels)
 
-def test_train_swc_log_likelihood():
+def test_swc_log_likelihood():
     import os
     import json
     import pickle
     import shutil
     import yaml
-    from osl_dynamics.config_api.wrappers import train_swc
     from osl_dynamics.config_api.pipeline import run_pipeline_from_file
 
-    save_dir = './test_train_swc_log_likelihood/'
+    save_dir = './test_swc_log_likelihood/'
     data_dir = f'{save_dir}/data/'
     output_dir = f'{save_dir}/result/'
 
@@ -308,19 +314,27 @@ def test_train_swc_log_likelihood():
 
     np.save(f'{inf_params_dir}/means.npy',means)
     np.save(f'{inf_params_dir}/covs.npy',covs)
+
+    means_dir = f'{inf_params_dir}/means.npy'
+    covs_dir = f'{inf_params_dir}/covs.npy'
     with open(f'{inf_params_dir}/alp.pkl', 'wb') as file:
         pickle.dump(labels, file)
 
     config = f"""
             load_data:
                 inputs: {data_dir}
-            train_swc_log_likelihood:
+            build_swc:
                 config_kwargs:
+                    n_channels: 2
                     n_states: 3
                     learn_means: False
                     learn_covariances: True
+                    initial_means: {means_dir}
+                    initial_covariances: {covs_dir}
                     window_length: 5
                     window_offset: 3
+            log_likelihood:
+                static_FC: False
                 """
 
     with open(f'{output_dir}train_config.yaml', "w") as file:
@@ -338,13 +352,15 @@ def test_train_swc_log_likelihood():
             diff = x[i] - mean
             term1 += -0.5 * np.log((2 * np.pi) ** d * det_cov)
             term2 += -0.5 * np.dot(diff.T, np.dot(inv_cov, diff))
-        return (term1 + term2) / n
+        return term1 + term2
 
     # Compute the log-likelihood for each data point and average
     log_likelihood_1 = log_likelihood_calculator(data_1[:5], means[0], covs[0])
     log_likelihood_2 = log_likelihood_calculator(data_1[3:], means[1], covs[1])
     log_likelihood_3 = log_likelihood_calculator(data_2[3:], means[2], covs[2])
-    log_likelihood_answer = (log_likelihood_1 + 2 * log_likelihood_2 + log_likelihood_3) / 4 * 5
+    # The answer is total likelihood per session.
+    # There are 8 time points per session here. But 20 timepoints calcualted.
+    log_likelihood_answer = (log_likelihood_1 + 2 * log_likelihood_2 + log_likelihood_3) / 20 * 8
 
     with open(f'{output_dir}/metrics.json','r') as file:
         metrics = json.load(file)

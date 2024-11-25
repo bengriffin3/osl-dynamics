@@ -160,38 +160,52 @@ class Model(ModelBase):
 
 
     def fit(self, dataset, verbose=1, **kwargs):
-        ts = dataset.time_series()
-        # The if-condition revert the concatenation in dataset.time_series()
-        if dataset.n_sessions == 1:
-            ts = [ts]
-        ts = [ts[i] for i in dataset.keep]
-        swc = connectivity.sliding_window_connectivity(ts, window_length=self.config.window_length,
-                                                       step_size=self.config.window_offset,
-                                                       conn_type="cov")
-        kmeans = KMeans(n_clusters=self.config.n_states, verbose=verbose)
+        if self.config.learn_covariances:
+            ts = dataset.time_series()
+            # The if-condition revert the concatenation in dataset.time_series()
+            if dataset.n_sessions == 1:
+                ts = [ts]
+            ts = [ts[i] for i in dataset.keep]
+            swc = connectivity.sliding_window_connectivity(ts, window_length=self.config.window_length,
+                                                           step_size=self.config.window_offset,
+                                                           conn_type="cov")
+            kmeans = KMeans(n_clusters=self.config.n_states, verbose=verbose)
 
-        # Get indices that correspond to an upper triangle of a matrix
-        # Include the diagonal.
-        i, j = np.triu_indices(self.config.n_channels, k=0)
+            # Get indices that correspond to an upper triangle of a matrix
+            # Include the diagonal.
+            i, j = np.triu_indices(self.config.n_channels, k=0)
 
-        # Now let's convert the sliding window connectivity matrices to a series of vectors
-        swc_vectors = np.concatenate(swc, axis=0)[:, i, j]
+            # Now let's convert the sliding window connectivity matrices to a series of vectors
+            swc_vectors = np.concatenate(swc, axis=0)[:, i, j]
 
-        # Fitting
-        kmeans.fit(swc_vectors)
+            # Fitting
+            kmeans.fit(swc_vectors)
 
-        centroids = kmeans.cluster_centers_
+            centroids = kmeans.cluster_centers_
 
-        kmean_networks = np.empty([self.config.n_states, self.config.n_channels, self.config.n_channels])
-        kmean_networks[:, i, j] = centroids
-        kmean_networks[:, j, i] = centroids
+            kmean_networks = np.empty([self.config.n_states, self.config.n_channels, self.config.n_channels])
+            kmean_networks[:, i, j] = centroids
+            kmean_networks[:, j, i] = centroids
 
-        time_courses = kmeans.labels_
-        time_courses_split = np.split(time_courses, np.cumsum([sw.shape[0] for sw in swc])[:-1])
+            time_courses = kmeans.labels_
+            time_courses_split = np.split(time_courses, np.cumsum([sw.shape[0] for sw in swc])[:-1])
 
-        return kmean_networks, time_courses_split
+            return kmean_networks, time_courses_split
+        else:
+            time_courses = self.infer_temporal(dataset,self.means, self.covariances)
+            return self.covariances,time_courses
 
-    def infer_spatial(self, dataset, alpha, verbose=1, **kwargs):
+
+    def dual_estimation(self, training_data, alpha=None, n_jobs=1,concatenate=False):
+        covs = self.infer_spatial(training_data,alpha,concatenate=concatenate)
+
+        # Get the inferred parameters
+        means = np.zeros((self.config.n_states, self.config.n_channels))
+
+        return means, covs
+
+
+    def infer_spatial(self, dataset, alpha, concatenate=False,verbose=1,**kwargs):
         # Ensure alpha and swc have the same length
         ts = dataset.time_series()
         if dataset.n_sessions == 1:
@@ -203,6 +217,7 @@ class Model(ModelBase):
         )
 
         assert len(swc) == len(alpha), "Length of swc and alpha must match"
+
         for i in range(len(swc)):
             assert len(swc[i]) == len(alpha[i]), f"Length of swc[{i}] and alpha[{i}] must match"
 
@@ -250,11 +265,7 @@ class Model(ModelBase):
 
         return all_labels
 
-    def log_likelihood(self, dataset, alpha, means, covs, verbose=1, **kwargs):
-        ts = dataset.time_series()
-        if dataset.n_sessions == 1:
-            ts = [ts]
-        ts = [ts[i] for i in dataset.keep]
+    def get_posterior_expected_log_likelihood(self, ts, alpha, verbose=1, **kwargs):
 
         assert len(ts) == len(alpha), "Length of time series and alpha must match"
         for i in range(len(ts)):
@@ -268,12 +279,14 @@ class Model(ModelBase):
                     range(0, subject_ts.shape[0] - self.config.window_length + 1, self.config.window_offset),
                     subject_alpha):
                 window_ts = subject_ts[start:start + self.config.window_length]
-                total_log_likelihood += estimate_gaussian_log_likelihood(window_ts, means[label], covs[label],
+                total_log_likelihood += estimate_gaussian_log_likelihood(window_ts, self.means[label], self.covariances[label],
                                                                          average=True)
                 total_window_number += 1
 
         average_log_likelihood = total_log_likelihood / total_window_number
-        return average_log_likelihood
+
+        # Returning the log likelihood for all data points.
+        return average_log_likelihood * sum(arr.shape[0] for arr in ts)
     def compile(self, optimizer=None):
         pass
 
@@ -283,6 +296,28 @@ class Model(ModelBase):
         np.save(f'{dir}/means.npy',self.means)
         np.save(f'{dir}/covs.npy',self.covariances)
 
+    @classmethod
+    def load(cls, dirname, single_gpu=True):
+        _logger.info(f"Loading model (Subclass): {dirname}")
+        config_dict, version = cls.load_config(dirname)
+
+        if single_gpu:
+            config_dict["multi_gpu"] = False
+
+        if version in ["<1.1.6", "1.1.6", "1.1.7"]:
+            raise ValueError(
+                f"Model was trained using osl-dynamics version {version}. "
+                + "This is incompatible with the current version. "
+                + "Please revert to v1.1.7 to load this model."
+            )
+
+        config = cls.config_type(**config_dict)
+        model = cls(config)
+        model.osld_version = version
+
+        # Custom behavior for weight restoration
+        model.load_weights(f"{dirname}/weights")
+        return model
     def load_weights(self,dir):
         try:
             self.means = np.load(f'{dir}/means.npy')
