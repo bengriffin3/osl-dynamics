@@ -275,6 +275,7 @@ def train_swc(
         return
 
 
+
     config = swc.Config(**config_kwargs)
     model = swc.Model(config)
     # model.summary()
@@ -701,6 +702,25 @@ def train_dynemo(
 
     if data is None:
         raise ValueError("data must be passed.")
+
+    # Deal with the special case of static FC model (n_state = 1 )
+    if config_kwargs['n_modes'] == 1:
+        ts = data.time_series(prepared=True, concatenate=False)
+        # Note training_data.keep is in order. You need to preserve the order
+        # between data and alpha.
+        ts = [ts[i] for i in data.keep]
+        # Concatenate across all sessions
+        ts = np.concatenate(ts, axis=0)
+
+        from osl_dynamics.array_ops import estimate_gaussian_distribution
+        means, covs = estimate_gaussian_distribution(ts, nonzero_means=config_kwargs['learn_means'])
+
+        inf_params_dir = output_dir + "/inf_params"
+        os.makedirs(inf_params_dir, exist_ok=True)
+
+        save(f"{inf_params_dir}/means.npy", means)
+        save(f"{inf_params_dir}/covs.npy", covs)
+        return
 
     from osl_dynamics.models import dynemo
 
