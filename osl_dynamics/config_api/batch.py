@@ -470,7 +470,7 @@ class BatchAnalysis:
                 n_states = config['n_states']
             else:
                 n_states = config['n_modes']
-                
+
             save_dir = config['save_dir']
             mode = config['mode']
             if 'bcv' in mode:
@@ -486,7 +486,7 @@ class BatchAnalysis:
         for model in models:
             if plot_end_index is not None:
                 n_states_list = n_states_list[:plot_end_index]
-            temp_values = [metrics[model][key] for key in n_states_list]
+            temp_values = [metrics[model][str(key)] for key in n_states_list]
             plot_box(data=temp_values,
                      labels=n_states_list,
                      demean=True,
