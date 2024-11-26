@@ -457,9 +457,9 @@ class BatchAnalysis:
         the folder Y_train/metrics, X_test/metrics.
         '''
         models = self.config_root['model'].keys()
-        n_states = self.config_root['n_states']
+        n_states_list = self.config_root['n_states']
 
-        metrics = {model: {str(int(num)): [] for num in n_states} for model in models}
+        metrics = {model: {str(int(num)): [] for num in n_states_list} for model in models}
         for i in range(len(self.config_list)):
             # Check if the current row matches the column_fold argument
                     
@@ -484,12 +484,11 @@ class BatchAnalysis:
 
         # Plot
         for model in models:
-            temp_keys = list(metrics[model].keys())
             if plot_end_index is not None:
-                temp_keys = temp_keys[:plot_end_index]
-            temp_values = [metrics[model][key] for key in temp_keys]
+                n_states_list = n_states_list[:plot_end_index]
+            temp_values = [metrics[model][key] for key in n_states_list]
             plot_box(data=temp_values,
-                     labels=temp_keys,
+                     labels=n_states_list,
                      demean=True,
                      demean_index=demean_index,
                      x_label=r'$N_{states}$',
@@ -499,7 +498,7 @@ class BatchAnalysis:
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}_demean.pdf')
                      )
             plot_box(data=temp_values,
-                     labels=temp_keys,
+                     labels=n_states_list,
                      demean=True,
                      demean_index=demean_index,
                      x_label=r'$N_{states}$',
@@ -509,7 +508,7 @@ class BatchAnalysis:
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}_demean.svg')
                      )
             plot_box(data=temp_values,
-                     labels=temp_keys,
+                     labels=n_states_list,
                      demean=False,
                      demean_index=demean_index,
                      x_label=r'$N_{states}$',
@@ -519,7 +518,7 @@ class BatchAnalysis:
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}.pdf')
                      )
             plot_box(data=temp_values,
-                     labels=temp_keys,
+                     labels=n_states_list,
                      demean=False,
                      demean_index=demean_index,
                      x_label=r'$N_{states}$',
