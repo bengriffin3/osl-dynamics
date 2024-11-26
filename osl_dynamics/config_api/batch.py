@@ -450,28 +450,21 @@ class BatchAnalysis:
         if not os.path.exists(self.analysis_path):
             os.makedirs(self.analysis_path)
 
-    def compare(self, demean_index=-1,inset_start_index=None,plot_end_index=None,fig_kwargs=None,folder='Y_test/',object='log_likelihood',column_fold=None):
+    def compare(self, demean_index=-1,inset_start_index=None,plot_end_index=None,fig_kwargs=None,folder='Y_test/',object='log_likelihood'):
         '''
         By default of bi-cross validation, we should compare the final log_likelihood on the Y_test.
         But for sanity check, and potentiall understand how the method work, we are also interested in
         the folder Y_train/metrics, X_test/metrics.
         '''
-        models = self.config_root['batch_variable']['model']
-
-        if 'n_states' in self.config_root['batch_variable']:
-            n_states = self.config_root['batch_variable']['n_states']
-        else:
-            n_states = self.config_root['batch_variable']['n_modes']
+        models = self.config_root['model'].keys()
+        n_states = self.config_root['n_states']
 
         metrics = {model: {str(int(num)): [] for num in n_states} for model in models}
         for i in range(len(self.config_list)):
             # Check if the current row matches the column_fold argument
-            if column_fold is not None:
-                if self.config_list.loc[i, 'column_fold'] != column_fold:
-                    continue  # Skip this row if the column_fold doesn't match
                     
             config = self.indexparser.parse(i)
-            model = config['model']
+            model = next(iter(config['model']))
 
             if 'n_states' in config:
                 n_states = config['n_states']
@@ -480,7 +473,7 @@ class BatchAnalysis:
 
             save_dir = config['save_dir']
             mode = config['mode']
-            if 'cv' in mode:
+            if 'bcv' in mode:
                 try:
                     with open(os.path.join(save_dir,folder, 'metrics.json'), 'r') as file:
                         metric = json.load(file)[object]
