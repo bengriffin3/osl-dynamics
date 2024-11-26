@@ -470,7 +470,7 @@ class BatchAnalysis:
                 n_states = config['n_states']
             else:
                 n_states = config['n_modes']
-            print(f'n_states variable is {n_states}'
+            print(f'n_states variable is {n_states}')
 
             save_dir = config['save_dir']
             mode = config['mode']
