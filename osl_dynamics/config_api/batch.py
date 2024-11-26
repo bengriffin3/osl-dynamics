@@ -177,7 +177,7 @@ class IndexParser:
             new_config['n_modes'] = int(n_states)
         new_config['mode'] = mode
 
-        ### Deal wiht the cross validation split
+        ### Deal with the cross validation split
         mode_name,mode_index = mode.rsplit('_',1)
         # Deal with cross validation case
         if mode_name!='repeat':
@@ -466,7 +466,7 @@ class BatchAnalysis:
             config = self.indexparser.parse(i)
             model = next(iter(config['model']))
 
-            if 'n_states' in config:
+            if model!='dynemo':
                 n_states = config['n_states']
             else:
                 n_states = config['n_modes']
