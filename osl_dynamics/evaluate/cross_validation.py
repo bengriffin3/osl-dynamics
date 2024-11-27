@@ -1709,6 +1709,8 @@ class BCV():
 
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
+        # Specify store_dir
+        prepare_config['load_data']['kwargs']['store_dir'] = f'{save_dir}/tmp/'
 
         # If select key is not specified before
         if 'select' not in prepare_config['load_data']['prepare'].keys():
@@ -1743,6 +1745,8 @@ class BCV():
 
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
+        # Specify store_dir
+        prepare_config['load_data']['kwargs']['store_dir'] = f'{save_dir}/tmp/'
 
         if 'select' not in prepare_config['load_data']['prepare'].keys():
             prepare_config['load_data']['prepare']['select'] = {}
@@ -1792,6 +1796,8 @@ class BCV():
 
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
+        # Specify store_dir
+        prepare_config['load_data']['kwargs']['store_dir'] = f'{save_dir}/tmp/'
 
         if 'select' not in prepare_config['load_data']['prepare'].keys():
             prepare_config['load_data']['prepare']['select'] = {}
@@ -1839,6 +1845,8 @@ class BCV():
 
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
+        # Specify store_dir
+        prepare_config['load_data']['kwargs']['store_dir'] = f'{save_dir}/tmp/'
 
         if 'select' not in prepare_config['load_data']['prepare'].keys():
             prepare_config['load_data']['prepare']['select'] = {}
