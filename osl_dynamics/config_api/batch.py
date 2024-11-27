@@ -658,7 +658,7 @@ class BatchAnalysis:
             mode = config['mode']
 
             ### SWC does not have an explicit model, sFC does not either.
-            if 'repeat' in mode and n_states > 1 and '':
+            if 'repeat' in mode and n_states > 1 and model!='swc':
                 try:
                     with open(f'{save_dir}/metrics/metrics.json',"r") as file:
                         data = json.load(file)
