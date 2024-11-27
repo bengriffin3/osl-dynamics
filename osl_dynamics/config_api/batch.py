@@ -657,7 +657,8 @@ class BatchAnalysis:
             save_dir = config['save_dir']
             mode = config['mode']
 
-            if 'repeat' in mode and n_states > 1:
+            ### SWC does not have an explicit model, sFC does not either.
+            if 'repeat' in mode and n_states > 1 and '':
                 try:
                     with open(f'{save_dir}/metrics/metrics.json',"r") as file:
                         data = json.load(file)
@@ -671,7 +672,7 @@ class BatchAnalysis:
         # Plot
         for metric in metrics:
             for model in models:
-                temp_values = [loss[metric][model][key] for key in n_states_list]
+                temp_values = [loss[metric][model][str(key)] for key in n_states_list]
                 plot_box(data=temp_values,
                          labels=n_states_list,
                          mark_best=False,
