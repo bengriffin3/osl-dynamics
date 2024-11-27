@@ -461,7 +461,6 @@ class BatchAnalysis:
 
         metrics = {model: {str(int(num)): [] for num in n_states_list} for model in models}
         for i in range(len(self.config_list)):
-            # Check if the current row matches the column_fold argument
                     
             config = self.indexparser.parse(i)
             model = next(iter(config['model']))
@@ -639,17 +638,26 @@ class BatchAnalysis:
                      )
 
 
-    def plot_training_loss(self, metrics=['free_energy'],demean=False, demean_index=-1):
-        models = self.config_root['batch_variable']['model']
-        n_states = self.config_root['batch_variable']['n_states']
-        loss = {metric: {model: {str(int(num)): [] for num in n_states} for model in models} for metric in metrics}
+    def plot_training_loss(self, metrics=['free_energy']):
+
+        models = self.config_root['model'].keys()
+        n_states_list = self.config_root['n_states']
+        # Remove the case where n_states = 1 because no dFC model
+        if 1 in n_states_list:
+            n_states_list.remove(1)
+
+        loss = {metric: {model: {str(int(num)): [] for num in n_states_list} for model in models} for metric in metrics}
         for i in range(len(self.config_list)):
             config = self.indexparser.parse(i)
-            model = config['model']
-            n_states = config['n_states']
-            mode = config['mode']
+            model = next(iter(config['model']))
+            if model != 'dynemo':
+                n_states = config['n_states']
+            else:
+                n_states = config['n_modes']
             save_dir = config['save_dir']
-            if 'repeat' in mode:
+            mode = config['mode']
+
+            if 'repeat' in mode and n_states > 1:
                 try:
                     with open(f'{save_dir}/metrics/metrics.json',"r") as file:
                         data = json.load(file)
@@ -659,21 +667,27 @@ class BatchAnalysis:
                     print(f'save_dir {save_dir} fails!')
                     loss[metric][model][str(int(n_states))].append(np.nan)
 
+
         # Plot
         for metric in metrics:
             for model in models:
-                temp_keys = list(loss[metric][model].keys())
-                temp_values = [loss[metric][model][key] for key in temp_keys]
+                temp_values = [loss[metric][model][key] for key in n_states_list]
                 plot_box(data=temp_values,
-                         labels=temp_keys,
+                         labels=n_states_list,
                          mark_best=False,
-                         demean=demean,
-                         demean_index=demean_index,
                          x_label=r'$N_{states}$',
                          y_label=metric,
-                         #title=f'{metric} VS N_states',
+                         title='Training loss',
                          filename=os.path.join(self.analysis_path, f'{model}_{metric}.svg')
                         )
+                plot_box(data=temp_values,
+                         labels=n_states_list,
+                         mark_best=False,
+                         x_label=r'$N_{states}$',
+                         y_label=metric,
+                         title='Training loss',
+                         filename=os.path.join(self.analysis_path, f'{model}_{metric}.pdf')
+                         )
     def plot_naive_cv(self):
         models = self.config_root['batch_variable']['model']
         n_states = self.config_root['batch_variable'].get('n_states', self.config_root['batch_variable'].get('n_modes'))
