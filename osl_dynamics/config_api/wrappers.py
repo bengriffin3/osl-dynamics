@@ -641,6 +641,7 @@ def train_dynemo(
         init_kwargs=None,
         fit_kwargs=None,
         save_inf_params=True,
+        calculate_free_energy=True
 ):
     """Train `DyNeMo <https://osl-dynamics.readthedocs.io/en/latest/autoapi\
     /osl_dynamics/models/dynemo/index.html>`_.
@@ -695,6 +696,8 @@ def train_dynemo(
         Keyword arguments to pass to the :code:`Model.fit`.
     save_inf_params : bool, optional
         Should we save the inferred parameters?
+    calculate_free_energy: bool, optional
+        Should we calculate free energy on training set?
     """
 
     init_kwargs = {} if init_kwargs is None else init_kwargs
@@ -791,6 +794,18 @@ def train_dynemo(
         save(f"{inf_params_dir}/alp.pkl", alpha)
         save(f"{inf_params_dir}/means.npy", means)
         save(f"{inf_params_dir}/covs.npy", covs)
+
+    if calculate_free_energy:
+        # Make output directory
+        metric_dir = output_dir + "/metrics/"
+        os.makedirs(metric_dir, exist_ok=True)
+
+        # Get the free energy
+        free_energy = model.free_energy(data)
+        metrics = {'free_energy': float(free_energy)}
+        with open(f'{metric_dir}metrics.json', "w") as json_file:
+            # Use json.dump to write the data to the file
+            json.dump(metrics, json_file)
 
     # Concatenate loss from init_history and history
     all_losses = np.concatenate((init_history['loss'], history['loss']))
