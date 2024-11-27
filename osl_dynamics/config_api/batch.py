@@ -743,7 +743,7 @@ class BatchAnalysis:
                     cov_1 = np.load(f'{save_dir}/partition_1/inf_params/covs.npy')
                     cov_2 = np.load(f'{save_dir}/partition_2/inf_params/covs.npy')
                     rep[model][str(int(n_states))].append(self._reproducibility_analysis(cov_1,cov_2,
-                                                          filename=os.path.join(rep_path,f'state_{n_states}_{mode}.svg')))
+                                                          filename=os.path.join(rep_path,f'{model}_state_{n_states}_{mode}.svg')))
                 except Exception:
                     print(f'save_dir {save_dir} fails!')
                     rep[model][str(int(n_states))].append(np.nan)
