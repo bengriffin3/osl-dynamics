@@ -721,22 +721,27 @@ class BatchAnalysis:
                      )
 
     def plot_split_half_reproducibility(self):
-        models = self.config_root['batch_variable']['model']
-        n_states = self.config_root['batch_variable'].get('n_states', self.config_root['batch_variable'].get('n_modes'))
-        rep = {model: {str(int(num)): [] for num in n_states} for model in models}
+        models = self.config_root['model'].keys()
+        n_states_list = self.config_root['n_states']
+        rep = {model: {str(int(num)): [] for num in n_states_list} for model in models}
         rep_path = os.path.join(self.analysis_path,'rep')
         if not os.path.exists(rep_path):
             os.makedirs(rep_path)
+
         for i in range(len(self.config_list)):
             config = self.indexparser.parse(i)
-            model = config['model']
-            n_states = config.get('n_states',config.get('n_modes'))
+            model = next(iter(config['model']))
+            if model != 'dynemo':
+                n_states = config['n_states']
+            else:
+                n_states = config['n_modes']
             save_dir = config['save_dir']
             mode = config['mode']
+
             if 'split' in mode:
                 try:
-                    cov_1 = np.load(f'{save_dir}/half_1/inf_params/covs.npy')
-                    cov_2 = np.load(f'{save_dir}/half_2/inf_params/covs.npy')
+                    cov_1 = np.load(f'{save_dir}/partition_1/inf_params/covs.npy')
+                    cov_2 = np.load(f'{save_dir}/partition_2/inf_params/covs.npy')
                     rep[model][str(int(n_states))].append(self._reproducibility_analysis(cov_1,cov_2,
                                                           filename=os.path.join(rep_path,f'state_{n_states}_{mode}.svg')))
                 except Exception:
@@ -744,30 +749,24 @@ class BatchAnalysis:
                     rep[model][str(int(n_states))].append(np.nan)
 
         for model in models:
-            temp_keys = list(rep[model].keys())
-            temp_values = [rep[model][key] for key in temp_keys]
+            temp_values = [rep[model][str(key)] for key in n_states_list]
             plot_box(data=temp_values,
-                     labels=temp_keys,
+                     labels=n_states_list,
                      mark_best=False,
                      demean=False,
                      x_label='N_states',
                      y_label='Average Riemannian distance',
                      title= 'Reproducibility Analysis',
                      filename=os.path.join(self.analysis_path, f'{model}_reproducibility.svg')
+                     )
+            plot_box(data=temp_values,
+                     labels=n_states_list,
+                     x_label='N_states',
+                     y_label='Average Riemannian distance',
+                     title='Reproducibility Analysis',
+                     filename=os.path.join(self.analysis_path, f'{model}_reproducibility.pdf')
                      )
 
-        for model in models:
-            temp_keys = list(rep[model].keys())
-            temp_values = [rep[model][key] for key in temp_keys]
-            plot_box(data=temp_values,
-                     labels=temp_keys,
-                     mark_best=False,
-                     demean=False,
-                     x_label='N_states',
-                     y_label='Average Riemannian distance',
-                     title= 'Reproducibility Analysis',
-                     filename=os.path.join(self.analysis_path, f'{model}_reproducibility.svg')
-                     )
 
     def plot_fo(self, plot_mode='repeat_1'):
         from osl_dynamics.inference.modes import argmax_time_courses,fractional_occupancies
