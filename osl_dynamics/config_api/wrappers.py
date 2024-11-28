@@ -15,6 +15,7 @@ where:
 """
 
 import os
+import warnings
 import json
 import pickle
 import logging
@@ -1312,19 +1313,19 @@ def log_likelihood(data, output_dir, static_FC=False, spatial=None):
         try:
             # Load the inferred state probabilities
             alpha = load(f"{inf_params_dir}/alp.pkl")
+        except FileNotFoundError:
+            # Handle the case where the file is not found
+            warnings.warn(f"File not found: {inf_params_dir}/alp.pkl. Setting alpha to None. This is fine if you're doing naive cross validation")
+            alpha = None
 
+        # Proceed only if alpha was loaded successfully
+        if alpha is not None:
             if len(alpha) != len(ts):
                 raise ValueError(
                     "len(alpha) and training_data.n_sessions must be the same."
                 )
-
             # Stack both ts and alpha
             alpha = np.stack(alpha)
-        except FileNotFoundError:
-            import warnings
-            # Handle the case where the file is not found
-            warnings.warn(f"File not found: {inf_params_dir}/alp.pkl. Setting alpha to None. This is fine if you're doing naive cross validation")
-            alpha = None
 
     ts = np.stack(ts)
 
