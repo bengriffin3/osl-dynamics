@@ -1262,7 +1262,7 @@ def dual_estimation(data, output_dir, n_jobs=1, concatenate=False):
     save(f"{dual_estimates_dir}/covs.npy", covs)
 
 
-def log_likelihood(data, output_dir, static_FC=False, spatial=None):
+def log_likelihood(data, output_dir, static_FC=False, spatial=None,infer_alpha=False):
     """Log-likelihood estimation for the data.
 
     This function expects a model has already been trained and the following
@@ -1286,6 +1286,8 @@ def log_likelihood(data, output_dir, static_FC=False, spatial=None):
         Whether to work only with static FC, i.e., #states=1
     spatial: dictionary, optional
         Only when static_FC = True, use the spatial map file directory here.
+    infer_alpha: bool, optional
+        Whether alpha should be inferred using the mode when calculating log likelihood
     """
     if data is None:
         raise ValueError("data must be passed.")
@@ -1310,16 +1312,11 @@ def log_likelihood(data, output_dir, static_FC=False, spatial=None):
 
         model = models.load(model_dir)
 
-        try:
+        if infer_alpha:
+            alpha = None
+        else:
             # Load the inferred state probabilities
             alpha = load(f"{inf_params_dir}/alp.pkl")
-        except FileNotFoundError:
-            # Handle the case where the file is not found
-            warnings.warn(f"File not found: {inf_params_dir}/alp.pkl. Setting alpha to None. This is fine if you're doing naive cross validation")
-            alpha = None
-
-        # Proceed only if alpha was loaded successfully
-        if alpha is not None:
             if len(alpha) != len(ts):
                 raise ValueError(
                     "len(alpha) and training_data.n_sessions must be the same."

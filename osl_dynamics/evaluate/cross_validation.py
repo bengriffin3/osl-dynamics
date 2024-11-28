@@ -1653,7 +1653,7 @@ class NCV():
         prepare_config['load_data'] = self.load_data
         ### For Sliding Window Correlation, there's no free energy, use log likelihood instead
         if self.model == 'swc':
-            prepare_config['log_likelihood'] = {'static_FC': False}
+            prepare_config['log_likelihood'] = {'static_FC': False,'infer_alpha':True}
         else:
             prepare_config['free_energy'] = {}
         prepare_config['keep_list'] = self.row_test
