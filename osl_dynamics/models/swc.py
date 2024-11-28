@@ -197,7 +197,7 @@ class Model(ModelBase):
             return self.covariances,time_courses
 
 
-    def dual_estimation(self, training_data, alpha=None, n_jobs=1,concatenate=False):
+    def dual_estimation(self, training_data, alpha=None, n_jobs=1,concatenate=False,method='sample'):
         covs = self.infer_spatial(training_data,alpha,concatenate=concatenate)
 
         # Get the inferred parameters

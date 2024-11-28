@@ -593,6 +593,7 @@ class Model(VariationalInferenceModelBase):
         learning_rate=None,
         n_jobs=1,
         store_dir="tmp",
+        method='mle'
     ):
         """Dual estimation to get the session-specific observation model
         parameters.
@@ -622,6 +623,8 @@ class Model(VariationalInferenceModelBase):
             Number of jobs to run in parallel.
         store_dir : str, optional
             Directory to temporarily store the model in.
+        method: str, optional
+            How to estimate spatial statistics
 
         Returns
         -------

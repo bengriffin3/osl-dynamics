@@ -22,6 +22,120 @@ def test_load_data():
     from shutil import rmtree
     rmtree(save_dir)
 
+
+def test_infer_spatial_hmm():
+    import os
+    import json
+    import pickle
+    import shutil
+    import yaml
+    from osl_dynamics.evaluate.cross_validation import BCV
+
+    save_dir = './test_infer_spatial/'
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
+    os.makedirs(save_dir)
+
+    # Define a very simple test case
+    n_samples = 3
+    n_channels = 3
+    n_states = 3
+    row_train = [1, 2]
+    column_X = [1]
+    column_Y = [0, 2]
+    row_test = [0]
+
+    indices_dir = f"{save_dir}/indices.json"
+    with open(indices_dir, "w") as json_file:
+        json.dump({
+            'row_train':row_train,
+            'row_test':row_test,
+            'column_X':column_X,
+            'column_Y':column_Y
+        }, json_file, indent=4)
+
+    # Construct the data
+    def generate_obs(cov, mean=None, n_timepoints=100):
+        if mean is None:
+            mean = np.zeros(len(cov))
+        return np.random.multivariate_normal(mean, cov, n_timepoints)
+
+    # Define the covariance matrices of state 1,2 in both splits
+    cors_Y = [-0.5, 0.0, 0.5]
+    covs_Y = [np.array([[1.0, cor], [cor, 1.0]]) for cor in cors_Y]
+
+    means_X = [1.0, 2.0, 3.0]
+    vars_X = [0.5, 1.0, 2.0]
+
+    n_timepoints = 100
+
+    # save these files
+    data_dir = f'{save_dir}data/'
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
+    hidden_states = []
+
+    for i in range(0, 2):
+        # Build up the hidden variable
+        hv_temp = np.zeros((n_timepoints * 2, n_states))
+        hv_temp[:, i] = np.array([0.6] * n_timepoints + [0.4] * n_timepoints)
+        hv_temp[:, i + 1] = np.array([0.4] * n_timepoints + [0.6] * n_timepoints)
+        hidden_states.append(np.tile(hv_temp, (1500, 1)))
+
+        obs = []
+        for j in range(1500):
+            observations_Y = [generate_obs(covs_Y[i], n_timepoints=n_timepoints),
+                              generate_obs(covs_Y[i + 1], n_timepoints=n_timepoints)]
+            observations_X = [generate_obs([[vars_X[i]]], [means_X[i]], n_timepoints=n_timepoints),
+                              generate_obs([[vars_X[i + 1]]], [means_X[i + 1]], n_timepoints=n_timepoints)]
+            observations = np.concatenate(
+                [np.hstack((Y[:, :1], X, Y[:, 1:])) for X, Y in zip(observations_X, observations_Y)], axis=0)
+            obs.append(observations)
+
+        obs = np.concatenate(obs, axis=0)
+        np.save(f"{data_dir}{10002 + i}.npy", obs)
+
+    with open(f'{data_dir}alp.pkl', "wb") as file:
+        pickle.dump(hidden_states, file)
+    # Genetate irrelevant dataset
+    np.save(f"{data_dir}10001.npy", generate_obs(np.eye(3) * 100, n_timepoints=300000))
+
+    config = f"""
+            load_data:
+                inputs: {data_dir}
+                prepare:
+                    select:
+                        timepoints:
+                            - 0
+                            - 300000
+                kwargs:
+                  load_memmaps: True
+            save_dir: {save_dir}
+            indices: {indices_dir}
+            mode: bcv_1
+            model:
+              hmm:
+                config_kwargs:
+                  n_states: {n_states}
+                  learn_means: True
+                  learn_covariances: True
+                  learning_rate: 0.01
+                  n_epochs: 3
+                  sequence_length: 600
+            """
+
+    config = yaml.safe_load(config)
+    bcv = BCV(config)
+    result = bcv.infer_spatial(row_train, column_X, f'{data_dir}alp.pkl',method='sample')
+
+    result_means = np.load(result['means'])
+    result_covs = np.load(result['covs'])
+    npt.assert_allclose(means_X, result_means, rtol=1e-2, atol=1e-2)
+    npt.assert_allclose(vars_X, result_covs, rtol=1e-2, atol=1e-2)
+
+
+
 def test_train_swc():
     import os
     import pickle

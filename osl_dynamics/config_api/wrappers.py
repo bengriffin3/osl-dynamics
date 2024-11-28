@@ -1212,7 +1212,7 @@ def plot_state_psds(data, output_dir):
     )
 
 
-def dual_estimation(data, output_dir, n_jobs=1, concatenate=False):
+def dual_estimation(data, output_dir, n_jobs=1, concatenate=False,method='sample'):
     """Dual estimation for session-specific observation model parameters.
 
     This function expects a model has already been trained and the following
@@ -1255,7 +1255,7 @@ def dual_estimation(data, output_dir, n_jobs=1, concatenate=False):
     alpha = load(f"{inf_params_dir}/alp.pkl")
 
     # Dual estimation
-    means, covs = model.dual_estimation(data, alpha=alpha, n_jobs=n_jobs, concatenate=concatenate)
+    means, covs = model.dual_estimation(data, alpha=alpha, n_jobs=n_jobs, concatenate=concatenate,method=method)
 
     # Save
     save(f"{dual_estimates_dir}/means.npy", means)

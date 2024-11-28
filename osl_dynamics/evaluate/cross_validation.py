@@ -1731,7 +1731,7 @@ class BCV():
         params_dir = f'{save_dir}/inf_params/'
         return {'means': f'{params_dir}/means.npy', 'covs': f'{params_dir}/covs.npy'}, f'{params_dir}/alp.pkl'
 
-    def infer_spatial(self, row, column, temporal, save_dir=None):
+    def infer_spatial(self, row, column, temporal, save_dir=None,method='sample'):
         # Specify the save directory
         if save_dir is None:
             save_dir = os.path.join(self.save_dir, 'infer_spatial/')
@@ -1759,7 +1759,7 @@ class BCV():
         prepare_config[f'build_{self.model}'] = {}
         prepare_config[f'build_{self.model}']['config_kwargs'] = self.model_kwargs['config_kwargs']
         prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
-        prepare_config['dual_estimation'] = {'concatenate': True}
+        prepare_config['dual_estimation'] = {'concatenate': True,'method':method}
 
         # Note the 'keep_list' value is in order (from small to large number)
         prepare_config['keep_list'] = row
