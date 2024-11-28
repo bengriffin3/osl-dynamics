@@ -29,6 +29,7 @@ from osl_dynamics.inference.layers import (
     VectorsLayer,
     StaticLossScalingFactorLayer,
 )
+from osl_dynamics.data.base import Data
 from osl_dynamics.models import obs_mod
 from osl_dynamics.models.mod_base import BaseModelConfig, ModelBase
 from osl_dynamics.simulation import HMM
@@ -243,10 +244,14 @@ class Model(ModelBase):
         return kmean_networks
 
     def infer_temporal(self, dataset, means, covs, verbose=1, **kwargs):
-        ts = dataset.time_series()
-        if dataset.n_sessions == 1:
-            ts = [ts]
-        ts = [ts[i] for i in dataset.keep]
+        ### If dataset is a realisation of osl_dynamics.data.base.Data, deal with that properly.
+        if isinstance(dataset,Data):
+            ts = dataset.time_series()
+            if dataset.n_sessions == 1:
+                ts = [ts]
+            ts = [ts[i] for i in dataset.keep]
+        else:
+            ts = dataset
 
         all_labels = []
 
@@ -266,7 +271,8 @@ class Model(ModelBase):
         return all_labels
 
     def get_posterior_expected_log_likelihood(self, ts, alpha, verbose=1, **kwargs):
-
+        if alpha is None:
+            alpha = self.infer_temporal(ts,self.means,self.covariances)
         assert len(ts) == len(alpha), "Length of time series and alpha must match"
         for i in range(len(ts)):
             assert len(alpha[i]) == (len(ts[i]) - self.config.window_length) // self.config.window_offset + 1

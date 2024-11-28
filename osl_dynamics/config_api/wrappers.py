@@ -1309,16 +1309,22 @@ def log_likelihood(data, output_dir, static_FC=False, spatial=None):
 
         model = models.load(model_dir)
 
-        # Load the inferred state probabilities
-        alpha = load(f"{inf_params_dir}/alp.pkl")
+        try:
+            # Load the inferred state probabilities
+            alpha = load(f"{inf_params_dir}/alp.pkl")
 
-        if len(alpha) != len(ts):
-            raise ValueError(
-                "len(alpha) and training_data.n_sessions must be the same."
-            )
+            if len(alpha) != len(ts):
+                raise ValueError(
+                    "len(alpha) and training_data.n_sessions must be the same."
+                )
 
-        # Stack both ts and alpha
-        alpha = np.stack(alpha)
+            # Stack both ts and alpha
+            alpha = np.stack(alpha)
+        except FileNotFoundError:
+            import warnings
+            # Handle the case where the file is not found
+            warnings.warn(f"File not found: {inf_params_dir}/alp.pkl. Setting alpha to None. This is fine if you're doing naive cross validation")
+            alpha = None
 
     ts = np.stack(ts)
 

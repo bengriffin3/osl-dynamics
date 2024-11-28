@@ -1651,7 +1651,11 @@ class NCV():
     def naive_validation(self):
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
-        prepare_config['free_energy'] = {}
+        ### For Sliding Window Correlation, there's no free energy, use log likelihood instead
+        if self.model == 'swc':
+            prepare_config['log_likelihood'] = {'static_FC': False}
+        else:
+            prepare_config['free_energy'] = {}
         prepare_config['keep_list'] = self.row_test
 
         with open(f'{self.save_dir}/prepared_ncv_config.yaml', 'w') as file:
