@@ -118,6 +118,11 @@ def dynemo_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
 
 def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
+    save_dir = f'{save_dir}/swc_iid/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
     sim = simulation.SWC_MVN(
         n_samples=n_samples * n_subjects,
         n_states=n_states,
@@ -137,6 +142,11 @@ def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
 
 def swc_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
+    save_dir = f'{save_dir}/swc_hrf/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
     sim = simulation.SWC_MVN(
         n_samples=n_samples * n_subjects,
         n_states=n_states,
