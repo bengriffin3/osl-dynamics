@@ -1,29 +1,37 @@
 import numpy as np
 from osl_dynamics.simulation.base import Simulation
+from osl_dynamics.simulation.mvn import MVN
 
 
-class SWC(Simulation):
+class SWC_MVN(Simulation):
     def __init__(self, n_samples, n_states, n_channels, stay_time, means, covariances):
         super().__init__(n_samples)
+        self.obs_mod = MVN(
+            means=means,
+            covariances=covariances,
+            n_modes=n_states,
+            n_channels=n_channels,
+        )
         self.n_states = n_states
         self.n_channels = n_channels
-        self.stay_time = stay_time
-        self.means = self._initialize_means(means)
-        self.covariances = covariances
-        self.validate_covariances()
-        self.generate_data()
 
+        self.stay_time = stay_time
+        self.means = self.obs_mod.means
+        self.covariances = self.obs_mod.covariances
+        #self.validate_covariances()
+        self.state_time_course = self.generate_state_sequence()
+        self.time_series = self.obs_mod.simulate_data(self.state_time_course)
+    '''
     def _initialize_means(self, means):
         if means == "zero":
             return np.zeros((self.n_states, self.n_channels))
         else:
             return np.array(means)
-
     def validate_covariances(self):
         if not isinstance(self.covariances, np.ndarray) or self.covariances.shape != (
         self.n_states, self.n_channels, self.n_channels):
             raise ValueError("Covariances must be a numpy array of shape (n_states, n_channels, n_channels)")
-
+    '''
     def generate_state_sequence(self):
         total_time_points = self.n_samples
         state_sequence = np.repeat(np.arange(self.n_states), self.stay_time)
