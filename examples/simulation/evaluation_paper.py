@@ -134,6 +134,7 @@ def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     data = sim.time_series
     time_course = sim.state_time_course
     data = data.reshape(n_subjects, -1, n_channels)
+    time_course = time_course.reshape(n_subjects, -1, n_states)
 
     np.save(f'{save_dir}truth/state_covariances.npy', sim.covariances)
 
@@ -158,6 +159,7 @@ def swc_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     data = sim.time_series
     time_course = sim.state_time_course
     data = data.reshape(n_subjects, -1, n_channels)
+    time_course = time_course.reshape(n_subjects, -1, n_states)
 
     np.save(f'{save_dir}truth/state_covariances.npy', sim.covariances)
 
@@ -177,6 +179,7 @@ def main(simulation_list=None):
         'n_samples':1200,
         'tr':0.72
     }
+
     if 'hmm_iid' in simulation_list:
         hmm_iid(**config)
     if 'hmm_iid' in simulation_list:
@@ -189,3 +192,5 @@ def main(simulation_list=None):
         swc_iid(**config)
     if 'swc_hrf' in simulation_list:
         swc_hrf(**config)
+if __name__ == '__main__':
+    main(['swc_iid'])
