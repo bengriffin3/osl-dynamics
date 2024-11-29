@@ -469,6 +469,7 @@ def train_hmm(
         output_dir,
         config_kwargs,
         init_kwargs=None,
+        infer_spatial='sample',
         fit_kwargs=None,
         save_inf_params=True,
         calculate_free_energy=True
