@@ -2,7 +2,7 @@ import os
 import numpy as np
 from osl_dynamics import simulation
 from osl_dynamics.array_ops import apply_hrf
-def hmm_iid(save_dir,n_subjects,n_samples,n_states,n_channels):
+def hmm_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     save_dir = f'{save_dir}/hmm_iid/'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -59,7 +59,7 @@ def hmm_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
 
 
-def dynemo_iid(save_dir,n_subjects,n_samples,n_states,n_channels):
+def dynemo_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     save_dir = f'{save_dir}/dynemo_iid/'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -117,7 +117,7 @@ def dynemo_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
         np.savetxt(f'{save_dir}{10001 + i}.txt', apply_hrf(data[i]))
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
 
-def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels):
+def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     from osl_dynamics.array_ops import get_one_hot
 
     sim = simulation.SWC_MVN(
