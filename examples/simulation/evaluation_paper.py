@@ -114,7 +114,7 @@ def dynemo_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     np.save(f'{save_dir}truth/state_covariances.npy', sim.obs_mod.covariances)
 
     for i in range(n_subjects):
-        np.savetxt(f'{save_dir}{10001 + i}.txt', apply_hrf(data[i]))
+        np.savetxt(f'{save_dir}{10001 + i}.txt', apply_hrf(data[i],tr))
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
 
 def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
