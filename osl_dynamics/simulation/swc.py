@@ -47,7 +47,7 @@ class SWC_MVN(Simulation):
             shuffled_state_sequence = np.concatenate(
                 [shuffled_state_sequence] + [np.full(self.stay_time, state) for state in state_blocks])
 
-        return get_one_hot(shuffled_state_sequence[:total_time_points],n_states=n_states)
+        return get_one_hot(shuffled_state_sequence[:total_time_points],n_states=self.n_states)
 
     def generate_data(self):
         total_time_points = self.n_samples
