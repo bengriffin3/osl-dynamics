@@ -1759,6 +1759,8 @@ class BCV():
         prepare_config[f'build_{self.model}'] = {}
         prepare_config[f'build_{self.model}']['config_kwargs'] = self.model_kwargs['config_kwargs']
         prepare_config[f'build_{self.model}']['config_kwargs']['n_channels'] = len(column)
+
+        method = self.model_kwargs.get('infer_spatial','sample')
         prepare_config['dual_estimation'] = {'concatenate': True,'method':method}
 
         # Note the 'keep_list' value is in order (from small to large number)

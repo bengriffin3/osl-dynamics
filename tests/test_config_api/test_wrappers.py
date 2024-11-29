@@ -2,6 +2,7 @@ import numpy as np
 import numpy.testing as npt
 from osl_dynamics.config_api.wrappers import load_data
 
+
 def test_load_data():
     import os
     import json
@@ -13,11 +14,11 @@ def test_load_data():
     input_2 = np.array([vector * 0.5 + 1., vector * 100]).T
     np.savetxt(f'{save_dir}10001.txt', input_1)
     np.savetxt(f'{save_dir}10002.txt', input_2)
-    prepare = {'standardize':{}}
+    prepare = {'standardize': {}}
 
-    data = load_data(inputs=save_dir,prepare=prepare)
-    npt.assert_almost_equal(data.arrays[0],np.array([vector,vector]).T)
-    npt.assert_almost_equal(data.arrays[1],np.array([vector,vector]).T)
+    data = load_data(inputs=save_dir, prepare=prepare)
+    npt.assert_almost_equal(data.arrays[0], np.array([vector, vector]).T)
+    npt.assert_almost_equal(data.arrays[1], np.array([vector, vector]).T)
     # Remove the directory after testing
     from shutil import rmtree
     rmtree(save_dir)
@@ -31,7 +32,7 @@ def test_infer_spatial_hmm():
     import yaml
     from osl_dynamics.evaluate.cross_validation import BCV
 
-    save_dir = './test_infer_spatial/'
+    save_dir = './test_infer_spatial_hmm/'
     if os.path.exists(save_dir):
         shutil.rmtree(save_dir)
     os.makedirs(save_dir)
@@ -48,10 +49,10 @@ def test_infer_spatial_hmm():
     indices_dir = f"{save_dir}/indices.json"
     with open(indices_dir, "w") as json_file:
         json.dump({
-            'row_train':row_train,
-            'row_test':row_test,
-            'column_X':column_X,
-            'column_Y':column_Y
+            'row_train': row_train,
+            'row_test': row_test,
+            'column_X': column_X,
+            'column_Y': column_Y
         }, json_file, indent=4)
 
     # Construct the data
@@ -66,6 +67,9 @@ def test_infer_spatial_hmm():
 
     means_X = [1.0, 2.0, 3.0]
     vars_X = [0.5, 1.0, 2.0]
+
+    means_X_estimate = [1.4,2,2.6]
+    vars_X_estimate = [0.94,1.5,1.84]
 
     n_timepoints = 100
 
@@ -82,6 +86,8 @@ def test_infer_spatial_hmm():
         hv_temp[:, i] = np.array([0.6] * n_timepoints + [0.4] * n_timepoints)
         hv_temp[:, i + 1] = np.array([0.4] * n_timepoints + [0.6] * n_timepoints)
         hidden_states.append(np.tile(hv_temp, (1500, 1)))
+
+        print(hidden_states)
 
         obs = []
         for j in range(1500):
@@ -127,13 +133,24 @@ def test_infer_spatial_hmm():
 
     config = yaml.safe_load(config)
     bcv = BCV(config)
-    result = bcv.infer_spatial(row_train, column_X, f'{data_dir}alp.pkl',method='sample')
 
-    result_means = np.load(result['means'])
-    result_covs = np.load(result['covs'])
+    result_1 = bcv.infer_spatial(row_train, column_X, f'{data_dir}alp.pkl', method='mle')
+
+    result_means = np.load(result_1['means'])
+    result_covs = np.load(result_1['covs'])
+    npt.assert_allclose(means_X_estimate, result_means, rtol=1e-2, atol=1e-2)
+    npt.assert_allclose(vars_X_estimate, result_covs, rtol=1e-2, atol=1e-2)
+
+    os.remove(f'{save_dir}/infer_spatial/inf_params/alp.pkl')
+    with open(f'{data_dir}alp.pkl', "wb") as file:
+        pickle.dump(hidden_states, file)
+
+    result_2 = bcv.infer_spatial(row_train, column_X, f'{data_dir}alp.pkl', method='sample')
+
+    result_means = np.load(result_2['means'])
+    result_covs = np.load(result_2['covs'])
     npt.assert_allclose(means_X, result_means, rtol=1e-2, atol=1e-2)
     npt.assert_allclose(vars_X, result_covs, rtol=1e-2, atol=1e-2)
-
 
 
 def test_train_swc():
@@ -199,7 +216,7 @@ def test_train_swc():
     inf_params_dir = f'{output_dir}/inf_params/'
     means = np.load(f'{inf_params_dir}/means.npy')
     covs = np.load(f'{inf_params_dir}/covs.npy')
-    with open(f'{inf_params_dir}/alp.pkl','rb') as file:
+    with open(f'{inf_params_dir}/alp.pkl', 'rb') as file:
         labels = pickle.load(file)
 
     covs_answer = np.array([[[2.5, -2.5], [-2.5, 2.5]],
@@ -213,9 +230,10 @@ def test_train_swc():
     label_mapping = {old: new for new, old in enumerate(order)}
     reordered_labels = [np.array([label_mapping[label] for label in session_labels]) for session_labels in labels]
 
-    npt.assert_array_equal(means,np.zeros((3,2)))
+    npt.assert_array_equal(means, np.zeros((3, 2)))
     npt.assert_array_equal(covs_answer, reordered_covs)
     npt.assert_array_equal(labels_answer, reordered_labels)
+
 
 def test_swc_infer_spatial():
     import os
@@ -276,8 +294,8 @@ def test_swc_infer_spatial():
     labels = [np.array([0, 1]), np.array([1, 2])]
     if not os.path.exists(f'{output_dir}/inf_params/'):
         os.makedirs(f'{output_dir}/inf_params/')
-    with open(f'{output_dir}/inf_params/alp.pkl','wb') as file:
-        pickle.dump(labels,file)
+    with open(f'{output_dir}/inf_params/alp.pkl', 'wb') as file:
+        pickle.dump(labels, file)
     with open(f'{output_dir}train_config.yaml', "w") as file:
         yaml.safe_dump(yaml.safe_load(config), file, default_flow_style=False)
     run_pipeline_from_file(f'{output_dir}train_config.yaml', output_dir)
@@ -290,8 +308,9 @@ def test_swc_infer_spatial():
                             [[52., 48.], [48., 52.]],
                             [[54.5, 47.75], [47.75, 54.5]]])
 
-    npt.assert_array_equal(means,np.zeros((3,2)))
+    npt.assert_array_equal(means, np.zeros((3, 2)))
     npt.assert_array_equal(covs_answer, covs)
+
 
 def test_swc_infer_temporal():
     import os
@@ -335,7 +354,7 @@ def test_swc_infer_temporal():
     np.save(f'{data_dir}/10001.npy', data_1)
     np.save(f'{data_dir}/10002.npy', data_2)
 
-    means = np.zeros((3,2))
+    means = np.zeros((3, 2))
     covs = np.array([[[2.5, -2.4999995], [-2.4999995, 2.5]],
                      [[52., 48.], [48., 52.]],
                      [[54.5, 47.75], [47.75, 54.5]]])
@@ -343,8 +362,8 @@ def test_swc_infer_temporal():
     if not os.path.exists(inf_params_dir):
         os.makedirs(inf_params_dir)
 
-    np.save(f'{inf_params_dir}/means.npy',means)
-    np.save(f'{inf_params_dir}/covs.npy',covs)
+    np.save(f'{inf_params_dir}/means.npy', means)
+    np.save(f'{inf_params_dir}/covs.npy', covs)
 
     means_dir = f'{inf_params_dir}/means.npy'
     covs_dir = f'{inf_params_dir}/covs.npy'
@@ -369,10 +388,11 @@ def test_swc_infer_temporal():
 
     labels_answer = [np.array([0, 1]), np.array([1, 2])]
 
-    with open(f'{inf_params_dir}/alp.pkl','rb') as file:
+    with open(f'{inf_params_dir}/alp.pkl', 'rb') as file:
         labels = pickle.load(file)
 
-    npt.assert_array_equal(labels_answer,labels)
+    npt.assert_array_equal(labels_answer, labels)
+
 
 def test_swc_log_likelihood():
     import os
@@ -417,7 +437,7 @@ def test_swc_log_likelihood():
     np.save(f'{data_dir}/10001.npy', data_1)
     np.save(f'{data_dir}/10002.npy', data_2)
 
-    means = np.zeros((3,2))
+    means = np.zeros((3, 2))
     covs = np.array([[[2.5, -2.4999995], [-2.4999995, 2.5]],
                      [[52., 48.], [48., 52.]],
                      [[54.5, 47.75], [47.75, 54.5]]])
@@ -426,8 +446,8 @@ def test_swc_log_likelihood():
     if not os.path.exists(inf_params_dir):
         os.makedirs(inf_params_dir)
 
-    np.save(f'{inf_params_dir}/means.npy',means)
-    np.save(f'{inf_params_dir}/covs.npy',covs)
+    np.save(f'{inf_params_dir}/means.npy', means)
+    np.save(f'{inf_params_dir}/covs.npy', covs)
 
     means_dir = f'{inf_params_dir}/means.npy'
     covs_dir = f'{inf_params_dir}/covs.npy'
@@ -476,11 +496,8 @@ def test_swc_log_likelihood():
     # There are 8 time points per session here. But 20 timepoints calcualted.
     log_likelihood_answer = (log_likelihood_1 + 2 * log_likelihood_2 + log_likelihood_3) / 20 * 8
 
-    with open(f'{output_dir}/metrics.json','r') as file:
+    with open(f'{output_dir}/metrics.json', 'r') as file:
         metrics = json.load(file)
 
     print(log_likelihood_answer)
-    npt.assert_almost_equal(log_likelihood_answer,metrics['log_likelihood'])
-
-
-
+    npt.assert_almost_equal(log_likelihood_answer, metrics['log_likelihood'])
