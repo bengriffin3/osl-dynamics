@@ -270,7 +270,7 @@ class Model(ModelBase):
 
         return all_labels
 
-    def get_posterior_expected_log_likelihood(self, ts, alpha, verbose=1, **kwargs):
+    def get_posterior_expected_log_likelihood(self, ts, alpha, verbose=1,average=False, **kwargs):
         if alpha is None:
             alpha = self.infer_temporal(ts,self.means,self.covariances)
         assert len(ts) == len(alpha), "Length of time series and alpha must match"
@@ -292,7 +292,10 @@ class Model(ModelBase):
         average_log_likelihood = total_log_likelihood / total_window_number
 
         # Returning the log likelihood for all data points.
-        return average_log_likelihood * sum(arr.shape[0] for arr in ts)
+        if average:
+            return average_log_likelihood
+        else:
+            return average_log_likelihood * sum(arr.shape[0] for arr in ts)
     def compile(self, optimizer=None):
         pass
 

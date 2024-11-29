@@ -277,7 +277,7 @@ class Model(VariationalInferenceModelBase):
         """Wrapper for :code:`get_means_covariances`."""
         return self.get_means_covariances()
 
-    def get_posterior_expected_log_likelihood(self, x, alpha):
+    def get_posterior_expected_log_likelihood(self, x, alpha,average=False):
         """Expected log-likelihood.
 
         Calculates the expected log-likelihood with respect to the MEAN posterior alpha
@@ -294,6 +294,8 @@ class Model(VariationalInferenceModelBase):
         alpha : np.ndarray
             MEAN posterior distribution of time series given the data,
             :math:`q(s_t)`. Shape is (batch_size*sequence_length, n_states).
+        average: bool, optional
+            whether tu return the average value
 
         Returns
         -------
@@ -315,10 +317,10 @@ class Model(VariationalInferenceModelBase):
         # Calculate the log likelihood for each observation
         log_likelihood = np.array([multivariate_normal.logpdf(x[i], mean=m_t[i], cov=C_t[i]) for i in range(len(x))])
 
-        # Sum the log likelihoods
-        total_log_likelihood = np.sum(log_likelihood)
-
-        return total_log_likelihood
+        if average:
+            return np.average(log_likelihood)
+        else:
+            return np.sum(log_likelihood)
 
     def set_means(self, means, update_initializer=True):
         """Set the mode means.
