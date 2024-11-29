@@ -118,8 +118,6 @@ def dynemo_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
 
 def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
-    from osl_dynamics.array_ops import get_one_hot
-
     sim = simulation.SWC_MVN(
         n_samples=n_samples * n_subjects,
         n_states=n_states,
@@ -131,7 +129,6 @@ def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     data = sim.time_series
     time_course = sim.state_time_course
     data = data.reshape(n_subjects, -1, n_channels)
-    time_course = get_one_hot(time_course, n_states=n_states).reshape(n_subjects, -1, n_states)
 
     np.save(f'{save_dir}truth/state_covariances.npy', sim.covariances)
 
@@ -140,8 +137,6 @@ def swc_iid(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
 
 def swc_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
-    from osl_dynamics.array_ops import get_one_hot
-
     sim = simulation.SWC_MVN(
         n_samples=n_samples * n_subjects,
         n_states=n_states,
@@ -153,7 +148,6 @@ def swc_hrf(save_dir,n_subjects,n_samples,n_states,n_channels,tr):
     data = sim.time_series
     time_course = sim.state_time_course
     data = data.reshape(n_subjects, -1, n_channels)
-    time_course = get_one_hot(time_course, n_states=n_states).reshape(n_subjects, -1, n_states)
 
     np.save(f'{save_dir}truth/state_covariances.npy', sim.covariances)
 

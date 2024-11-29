@@ -1,6 +1,7 @@
 import numpy as np
 from osl_dynamics.simulation.base import Simulation
 from osl_dynamics.simulation.mvn import MVN
+from osl_dynamics.array_ops import get_one_hot
 
 
 class SWC_MVN(Simulation):
@@ -46,7 +47,7 @@ class SWC_MVN(Simulation):
             shuffled_state_sequence = np.concatenate(
                 [shuffled_state_sequence] + [np.full(self.stay_time, state) for state in state_blocks])
 
-        return shuffled_state_sequence[:total_time_points]
+        return get_one_hot(shuffled_state_sequence[:total_time_points],n_states=n_states)
 
     def generate_data(self):
         total_time_points = self.n_samples
