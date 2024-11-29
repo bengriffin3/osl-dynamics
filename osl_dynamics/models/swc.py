@@ -17,6 +17,7 @@ import tensorflow_probability as tfp
 from tensorflow.keras import backend, layers, utils
 from numba.core.errors import NumbaWarning
 from scipy.special import logsumexp, xlogy
+from scipy.spatial.distance import euclidean
 from tqdm.auto import trange
 from pqdm.threads import pqdm
 
@@ -259,13 +260,33 @@ class Model(ModelBase):
             subject_labels = []
             for start in range(0, subject_ts.shape[0] - self.config.window_length + 1, self.config.window_offset):
                 window_ts = subject_ts[start:start + self.config.window_length]
-
+                '''
                 log_likelihoods = [
                     estimate_gaussian_log_likelihood(window_ts, means[state], covs[state], average=True)
                     for state in range(self.config.n_states)
                 ]
 
                 subject_labels.append(np.argmax(log_likelihoods))
+                '''
+
+                def flatten_upper_triangle(matrix):
+                    return matrix[np.triu_indices_from(matrix)]
+                # Compute the sample covariance matrix for the window
+                window_cov = np.cov(window_ts, rowvar=False)  # rowvar=False for columns as variables
+
+                # Flatten the upper triangle (including diagonal)
+                window_cov_vector = flatten_upper_triangle(window_cov)
+
+                # Compute distances to each state's covariance
+                distances = [
+                    euclidean(
+                        window_cov_vector,
+                        flatten_upper_triangle(covs[state])
+                    ) for state in range(self.config.n_states)
+                ]
+
+                # Assign the label of the state with the smallest distance
+                subject_labels.append(np.argmin(distances))
             all_labels.append(np.array(subject_labels))
 
         return all_labels
