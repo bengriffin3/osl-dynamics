@@ -719,7 +719,7 @@ class Model(ModelBase):
         gamma = np.reshape(gamma, (x.shape[0], x.shape[1], -1))
         log_likelihood = self.get_log_likelihood(x)
         if average:
-            return tf.stop_gradient(tf.reduce_mean(log_likelihood * gamma))
+            return tf.stop_gradient(tf.reduce_mean(log_likelihood * gamma)) * gamma.shape[2]
         else:
             return tf.stop_gradient(tf.reduce_sum(log_likelihood * gamma))
 
