@@ -192,5 +192,3 @@ def main(simulation_list=None):
         swc_iid(**config)
     if 'swc_hrf' in simulation_list:
         swc_hrf(**config)
-if __name__ == '__main__':
-    main(['swc_iid'])
