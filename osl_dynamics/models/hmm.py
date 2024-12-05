@@ -1539,7 +1539,7 @@ class Model(ModelBase):
                     diff = x - session_means[state]
                     if method == 'sample':
                         if sum_a[state] == 0:
-                            session_covariances[state] = np.zeros((self.config.n_channels,self.config.n_channels))
+                            session_covariances[state] = np.eye(self.config.n_channels)
                         else:
                             session_covariances[state] = (
                                 np.sum(
