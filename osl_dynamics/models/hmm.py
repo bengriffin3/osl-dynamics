@@ -1538,15 +1538,18 @@ class Model(ModelBase):
                 for state in range(n_states):
                     diff = x - session_means[state]
                     if method == 'sample':
-                        session_covariances[state] = (
-                            np.sum(
-                                diff[:, :, None]
-                                * diff[:, None, :]
-                                * a[:, state, None, None],
-                                axis=0,
+                        if sum_a[state] == 0:
+                            session_covariances[state] = np.zeros((self.config.n_channels,self.config.n_channels))
+                        else:
+                            session_covariances[state] = (
+                                np.sum(
+                                    diff[:, :, None]
+                                    * diff[:, None, :]
+                                    * a[:, state, None, None],
+                                    axis=0,
+                                )
+                                / sum_a[state]
                             )
-                            / sum_a[state]
-                        )
                     elif method == 'mle':
                         # MLE covariance estimation
                         weights = a[:, state]
