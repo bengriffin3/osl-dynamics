@@ -1774,7 +1774,8 @@ class BCV():
 
         # Delete the time courses if self.save_temp is False
         if not self.save_temp:
-            os.remove(f'{save_dir}/inf_params/alp.pkl')
+            if os.path.exists(f'{save_dir}/inf_params/alp.pkl'):
+                os.remove(f'{save_dir}/inf_params/alp.pkl')
         '''
         # Compress the representation of alp.pkl file
         if os.path.exists(f'{save_dir}inf_params/alp.pkl'):
@@ -1874,6 +1875,12 @@ class BCV():
             yaml.safe_dump(prepare_config, file, default_flow_style=False, sort_keys=False)
         run_pipeline_from_file(f'{save_dir}/prepared_config.yaml',
                                save_dir)
+
+        # Delete the time courses if self.save_temp is False
+        if not self.save_temp:
+            if os.path.exists(f'{save_dir}/inf_params/alp.pkl'):
+                os.remove(f'{save_dir}/inf_params/alp.pkl')
+
         return f'{save_dir}/metrics.json'
 
     def validate(self):
