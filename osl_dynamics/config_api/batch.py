@@ -282,7 +282,7 @@ class BatchTrain:
                 yaml.safe_dump(config, file, default_flow_style=False)
         self.config = config
 
-    def model_train(self,):
+    def model_train(self):
         '''
         Batch model train method
         Returns
@@ -310,6 +310,7 @@ class BatchTrain:
                 with open(f'{temp_save_dir}/indices_{i+1}.json','w') as file:
                     json.dump(indices_list[i],file)
                 prepare_config['keep_list'] = f'{temp_save_dir}/indices_{i + 1}.json'
+                prepare_config['load_data']['kwargs']['store_dir'] = f'{temp_save_dir}/tmp/'
                 with open(f'{temp_save_dir}prepared_config.yaml', 'w') as file:
                     yaml.safe_dump(prepare_config, file, default_flow_style=False)
                 run_pipeline_from_file(f'{temp_save_dir}prepared_config.yaml',
@@ -374,6 +375,7 @@ class BatchTrain:
             cv.validate(self.config, self.config['row_fold'], self.config['column_fold'])
             '''
         elif 'repeat' in self.config["mode"]:
+            prepare_config['load_data']['kwargs']['store_dir'] = f'{self.config["save_dir"]}/tmp/'
             with open(f'{self.config["save_dir"]}prepared_config.yaml', 'w') as file:
                 yaml.safe_dump(prepare_config, file, default_flow_style=False)
             run_pipeline_from_file(f'{self.config["save_dir"]}prepared_config.yaml',

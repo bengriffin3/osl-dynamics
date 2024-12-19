@@ -1643,6 +1643,7 @@ class NCV():
         prepare_config[f'train_{self.model}'] = self.model_kwargs
         prepare_config['keep_list'] = self.row_train
 
+        prepare_config['load_data']['kwargs']['store_dir'] = f'{self.save_dir}/tmp_train/'
         with open(f'{self.save_dir}/prepared_config.yaml', 'w') as file:
             yaml.safe_dump(prepare_config, file, default_flow_style=False)
         run_pipeline_from_file(f'{self.save_dir}/prepared_config.yaml', self.save_dir)
@@ -1651,6 +1652,7 @@ class NCV():
     def naive_validation(self):
         prepare_config = {}
         prepare_config['load_data'] = self.load_data
+        prepare_config['load_data']['kwargs']['store_dir'] = f'{self.save_dir}/tmp_validate/'
         ### For Sliding Window Correlation, there's no free energy, use log likelihood instead
         if self.model == 'swc':
             prepare_config['log_likelihood'] = {'static_FC': False,'infer_alpha':True}
