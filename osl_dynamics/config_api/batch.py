@@ -708,7 +708,7 @@ class BatchAnalysis:
             if 'ncv' in mode:
                 try:
                     with open(f'{save_dir}/ncv_free_energy.json','r') as file:
-                        free_energy[model][str(int(n_states))] = json.load(file)
+                        free_energy[model][str(int(n_states))] = float(json.load(file))
                 except Exception:
                     print(f'save_dir {save_dir} fails!')
 
