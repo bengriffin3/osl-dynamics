@@ -692,18 +692,22 @@ class BatchAnalysis:
                          filename=os.path.join(self.analysis_path, f'{model}_{metric}.pdf')
                          )
     def plot_naive_cv(self):
-        models = self.config_root['batch_variable']['model']
-        n_states = self.config_root['batch_variable'].get('n_states', self.config_root['batch_variable'].get('n_modes'))
-        free_energy = {model: {str(int(num)): [] for num in n_states} for model in models}
+        models = self.config_root['model'].keys()
+        n_states_list = self.config_root['n_states']
+        # Remove the case where n_states = 1 because no dFC model
+        if 1 in n_states_list:
+            n_states_list.remove(1)
+
+        free_energy = {model: {str(int(num)): [] for num in n_states_list} for model in models}
         for i in range(len(self.config_list)):
             config = self.indexparser.parse(i)
             model = config['model']
             n_states = config.get('n_states',config.get('n_modes'))
             save_dir = config['save_dir']
             mode = config['mode']
-            if 'naive_validation' in mode:
+            if 'ncv' in mode:
                 try:
-                    with open(f'{save_dir}/naive_cv_free_energy.json','r') as file:
+                    with open(f'{save_dir}/ncv_free_energy.json','r') as file:
                         free_energy[model][str(int(n_states))] = json.load(file)
                 except Exception:
                     print(f'save_dir {save_dir} fails!')
