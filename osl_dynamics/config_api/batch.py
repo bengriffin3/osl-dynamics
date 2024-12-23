@@ -175,6 +175,7 @@ class IndexParser:
             new_config['n_states'] = int(n_states)
         else:
             new_config['n_modes'] = int(n_states)
+            new_config.pop('n_states', None)
         new_config['mode'] = mode
 
         ### Deal with the cross validation split
@@ -660,7 +661,7 @@ class BatchAnalysis:
             mode = config['mode']
 
             ### SWC does not have an explicit model, sFC does not either.
-            if 'repeat' in mode and n_states > 1 and model!='swc':
+            if 'repeat' in mode and int(n_states) > 1 and model!='swc':
                 try:
                     with open(f'{save_dir}/metrics/metrics.json',"r") as file:
                         data = json.load(file)
@@ -705,7 +706,7 @@ class BatchAnalysis:
             n_states = config.get('n_states',config.get('n_modes'))
             save_dir = config['save_dir']
             mode = config['mode']
-            if 'ncv' in mode and n_states>1:
+            if 'ncv' in mode and int(n_states)>1:
                 try:
                     with open(f'{save_dir}/ncv_free_energy.json','r') as file:
                         free_energy[model][str(int(n_states))] = float(json.load(file)[0])
