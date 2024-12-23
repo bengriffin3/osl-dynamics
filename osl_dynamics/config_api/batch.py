@@ -707,11 +707,11 @@ class BatchAnalysis:
             save_dir = config['save_dir']
             mode = config['mode']
             if 'ncv' in mode and int(n_states)>1:
-                try:
+                #try:
                     with open(f'{save_dir}/ncv_free_energy.json','r') as file:
                         free_energy[model][str(int(n_states))].append(float(json.load(file)[0]))
-                except Exception:
-                    print(f'save_dir {save_dir} fails!')
+                #except Exception:
+                #    print(f'save_dir {save_dir} fails!')
 
         for model in models:
             temp_keys = list(free_energy[model].keys())
