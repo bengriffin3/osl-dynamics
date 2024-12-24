@@ -192,6 +192,9 @@ class Model(ModelBase):
             time_courses = kmeans.labels_
             time_courses_split = np.split(time_courses, np.cumsum([sw.shape[0] for sw in swc])[:-1])
 
+            # Update the covariances of the model
+            self.covariances = kmean_networks
+
             return kmean_networks, time_courses_split
         else:
             time_courses = self.infer_temporal(dataset,self.means, self.covariances)
