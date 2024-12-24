@@ -713,7 +713,10 @@ class BatchAnalysis:
             if 'ncv' in mode and int(n_states)>1:
                 try:
                     with open(f'{save_dir}/{file_name}','r') as file:
-                        free_energy[model][str(int(n_states))].append(float(json.load(file)[0]))
+                        if model == 'swc':
+                            free_energy[model][str(int(n_states))].append(float(json.load(file)['log_likelihood']))
+                        else:
+                            free_energy[model][str(int(n_states))].append(float(json.load(file)[0]))
                 except Exception:
                     print(f'save_dir {save_dir} fails!')
 
