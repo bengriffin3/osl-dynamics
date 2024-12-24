@@ -703,12 +703,16 @@ class BatchAnalysis:
         for i in range(len(self.config_list)):
             config = self.indexparser.parse(i)
             model = next(iter(config['model']))
+            if model == 'swc':
+                file_name = 'metrics.json'
+            else:
+                file_name = 'ncv_free_energy.json'
             n_states = config.get('n_states',config.get('n_modes'))
             save_dir = config['save_dir']
             mode = config['mode']
             if 'ncv' in mode and int(n_states)>1:
                 try:
-                    with open(f'{save_dir}/ncv_free_energy.json','r') as file:
+                    with open(f'{save_dir}/{file_name}','r') as file:
                         free_energy[model][str(int(n_states))].append(float(json.load(file)[0]))
                 except Exception:
                     print(f'save_dir {save_dir} fails!')
