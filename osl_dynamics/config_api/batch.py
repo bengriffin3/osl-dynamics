@@ -644,7 +644,7 @@ class BatchAnalysis:
     def plot_training_loss(self, metrics=['free_energy']):
 
         models = self.config_root['model'].keys()
-        n_states_list = self.config_root['n_states']
+        n_states_list = self.config_root['n_states'].copy()
         # Remove the case where n_states = 1 because no dFC model
         if 1 in n_states_list:
             n_states_list.remove(1)
@@ -694,7 +694,7 @@ class BatchAnalysis:
                          )
     def plot_naive_cv(self):
         models = self.config_root['model'].keys()
-        n_states_list = self.config_root['n_states']
+        n_states_list = self.config_root['n_states'].copy()
         # Remove the case where n_states = 1 because no dFC model
         if 1 in n_states_list:
             n_states_list.remove(1)
@@ -736,7 +736,7 @@ class BatchAnalysis:
 
     def plot_split_half_reproducibility(self):
         models = self.config_root['model'].keys()
-        n_states_list = self.config_root['n_states']
+        n_states_list = self.config_root['n_states'].copy()
         rep = {model: {str(int(num)): [] for num in n_states_list} for model in models}
         rep_path = os.path.join(self.analysis_path,'rep')
         if not os.path.exists(rep_path):
