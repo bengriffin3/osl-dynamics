@@ -3,7 +3,6 @@
 """
 
 import re
-import gc
 import logging
 import warnings
 import pathlib
@@ -425,7 +424,7 @@ class Data:
             n_timepoints, _ = array.shape
             if session_length is None:
                 # Apply filtering to the entire array
-                filtered_array = processing.temporal_filter(
+                array = processing.temporal_filter(
                     array, low_freq, high_freq, self.sampling_frequency
                 )
             else:
@@ -436,13 +435,12 @@ class Data:
                     filtered_array[start:end] = processing.temporal_filter(
                         array[start:end], low_freq, high_freq, self.sampling_frequency
                     )
-            del array  # Cleanup the temporary in-memory array
-            gc.collect()  # Explicit garbage collection for memory efficiency
+                array = filtered_array
 
             if self.load_memmaps:
                 # Write the filtered array to a memory-mapped file
-                filtered_array = misc.array_to_memmap(prepared_data_file, filtered_array)
-            return filtered_array
+                array = misc.array_to_memmap(prepared_data_file, array)
+            return array
 
         # Prepare the data in parallel
         arrays = self.raw_data_arrays if use_raw else self.arrays
