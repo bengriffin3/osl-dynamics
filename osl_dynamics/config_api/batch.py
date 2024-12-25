@@ -669,7 +669,8 @@ class BatchAnalysis:
                         loss[metric][model][str(int(n_states))].append(data[metric])
                 except Exception:
                     print(f'save_dir {save_dir} fails!')
-                    loss[metric][model][str(int(n_states))].append(np.nan)
+                    for metric in metrics:
+                        loss[metric][model][str(int(n_states))].append(np.nan)
 
 
         # Plot
