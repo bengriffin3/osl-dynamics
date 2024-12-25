@@ -381,7 +381,7 @@ class Data:
 
         return self
 
-    def filter(self, low_freq=None, high_freq=None, use_raw=False):
+    def filter(self, low_freq=None, high_freq=None, use_raw=False,session_length=None):
         """Filter the data.
 
         This is an in-place operation.
@@ -396,7 +396,9 @@ class Data:
             filtering is applied.
         use_raw : bool, optional
             Should we prepare the original 'raw' data that we loaded?
-
+        session_length: int, optional
+            The length of each session. If provided, the filter will be applied
+            separately to each session within an array
         Returns
         -------
         data : osl_dynamics.data.Data
@@ -419,9 +421,22 @@ class Data:
 
         # Function to apply filtering to a single array
         def _apply(array, prepared_data_file):
-            array = processing.temporal_filter(
-                array, low_freq, high_freq, self.sampling_frequency
-            )
+            n_timepoints, _ = array.shape
+            if session_length is None:
+                # Apply filtering to the entire array
+                array = processing.temporal_filter(
+                    array, low_freq, high_freq, self.sampling_frequency
+                )
+            else:
+                # Apply filtering to each session separately
+                filtered_array = np.zeros_like(array)
+                for start in range(0, n_timepoints, session_length):
+                    end = min(start + session_length, n_timepoints)
+                    filtered_array[start:end] = processing.temporal_filter(
+                        array[start:end], low_freq, high_freq, self.sampling_frequency
+                    )
+                array = filtered_array
+
             if self.load_memmaps:
                 array = misc.array_to_memmap(prepared_data_file, array)
             return array
