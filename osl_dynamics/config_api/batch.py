@@ -7,6 +7,7 @@ This module contains useful functions to initialise proper batch training
 See ./config_train_prototype.yaml for an example batch file.
 """
 import os
+import shutil
 import random
 import pickle
 import time
@@ -20,8 +21,10 @@ import pandas as pd
 from .pipeline import run_pipeline_from_file
 from ..data.base import Data
 from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo, BCV, NCV
+from ..inference.modes import (argmax_time_courses, fractional_occupancies,
+                               mean_lifetimes,mean_intervals,reweight_alphas)
 from ..utils.misc import override_dict_defaults
-from ..utils.plotting import plot_box
+from ..utils.plotting import plot_box, plot_alpha, plot_violin
 
 
 class IndexParser:
@@ -888,6 +891,76 @@ class BatchAnalysis:
             return (mean_diagonal - mean_off_diagonal) / np.sqrt(var_off_diagonal)
         else:
             return mean_diagonal
+
+    def post_hoc_analysis(self,model='hmm',n_state=6,sampling_frequency=1.389):
+        save_dir = (f'{self.config_path}/{model}_state_{n_state}/repeat_1/')
+
+        plot_dir = f'{self.analysis_path}/{model}_state_{n_state}/'
+
+        if os.path.exists(plot_dir):
+            shutil.rmtree(plot_dir)
+        os.makedirs(plot_dir)
+
+        # Copy the loss function to confirm that training is successful.
+        loss_function_file = f'{save_dir}/loss_function.pdf'
+
+        # Check if the file exists before copying
+        if os.path.exists(loss_function_file):
+            shutil.copy(loss_function_file, plot_dir)
+            print(f"Copied {loss_function_file} to {plot_dir}")
+        else:
+            print(f"File {loss_function_file} does not exist. Skipping copy.")
+
+        # Deal with time courses.
+        alpha_path = f'{save_dir}/inf_params/alp.pkl'
+        cov_path = f'{save_dir}/inf_params/covs.npy'
+
+        # Check if the pickle file exists before reading
+        if os.path.exists(alpha_path):
+            with open(alpha_path, 'rb') as file:
+                alpha = pickle.load(file)  # Load the pickle file into the variable `alpha`
+                print("Pickle file loaded successfully. Variable 'alpha' is now available.")
+        else:
+            alpha = None
+            print(f"Pickle file {alpha_path} does not exist. Variable 'alpha' is set to None.")
+
+        # Check if the pickle file exists before reading
+        if os.path.exists(cov_path):
+            covs = np.load(cov_path)
+            print("Covariance loaded successfully. Variable 'covs' is now available.")
+        else:
+            covs = None
+            print(f"Covariance file does not exist. Variable 'covs' is set to None.")
+
+        plot_alpha(alpha[0],n_samples=1200,filename=f'{plot_dir}/alpha.pdf')
+
+        if model == 'hmm':
+            stc = argmax_time_courses(alpha)
+
+            # Fractional occupancy
+            fo = fractional_occupancies(stc)
+            print(f'Fractional occupancy shape: {fo.shape}')
+            plot_violin(fo.T, x_label="State", y_label="Fractional Occupancy",filename=f'{plot_dir}/fo.pdf')
+
+            # Mean lifetime
+            lt = mean_lifetimes(stc,sampling_frequency)
+            plot_violin(lt.T, x_label="State", y_label="Mean Lifetime (s)",filename=f'{plot_dir}/lt.pdf')
+
+            # Mean intervals
+            intv = mean_intervals(stc, sampling_frequency)
+            plot_violin(intv.T, x_label="State", y_label="Mean Interval (s)",filename=f'{plot_dir}/intv.pdf')
+
+        elif model == 'dynemo':
+            norm_alpha = reweight_alphas(alpha,covs)
+            plot_alpha(norm_alpha[0],n_samples=1200,filename=f'{plot_dir}norm_alpha.pdf')
+
+            mean_norm_alpha = np.array([np.mean(a, axis=0) for a in norm_alpha])
+            plot_violin(mean_norm_alpha.T, x_label="Mode", y_label="Mean alpha",filename=f'{plot_dir}/mean_norm_alpha.pdf')
+
+            std_norm_alpha = np.array([np.std(a, axis=0) for a in norm_alpha])
+            plot_violin(std_norm_alpha.T, x_label="Mode", y_label="Std alpha",filename=f'{plot_dir}/std_norm_alpha.pdf')
+
+
 
 
 
