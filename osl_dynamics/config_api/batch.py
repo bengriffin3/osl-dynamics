@@ -941,31 +941,53 @@ class BatchAnalysis:
             fo = fractional_occupancies(stc)
             print(f'Fractional occupancy shape: {fo.shape}')
             plot_box(fo.T.tolist(),
-                     labels = list(range(1,len(fo.T)+1)),
+                     labels=list(range(1,len(fo.T)+1)),
                      plot_samples=False,
                      x_label="State",
                      y_label="Fractional Occupancy",
-                     filename=f'{plot_dir}/fo.pdf')
-            '''
+                     filename=f'{plot_dir}/fo.pdf'
+                     )
+
             # Mean lifetime
             lt = mean_lifetimes(stc,sampling_frequency)
-            plot_violin(lt.T, x_label="State", y_label="Mean Lifetime (s)",filename=f'{plot_dir}/lt.pdf')
+            plot_box(lt.T.tolist(),
+                     labels=list(range(1,len(lt.T)+1)),
+                     plot_samples=False,
+                     x_label="State",
+                     y_label="Mean Lifetime (s)",
+                     filename=f'{plot_dir}/lt.pdf'
+                     )
 
             # Mean intervals
             intv = mean_intervals(stc, sampling_frequency)
-            plot_violin(intv.T, x_label="State", y_label="Mean Interval (s)",filename=f'{plot_dir}/intv.pdf')
-            '''
+            plot_box(intv.T.tolist(),
+                     labels=list(range(1,len(intv.T)+1)),
+                     plot_samples=False,
+                     x_label="State",
+                     y_label="Mean Interval (s)",
+                     filename=f'{plot_dir}/intv.pdf')
+
         elif model == 'dynemo':
-            '''
             norm_alpha = reweight_alphas(alpha,covs)
             plot_alpha(norm_alpha[0],n_samples=1200,filename=f'{plot_dir}norm_alpha.pdf')
 
             mean_norm_alpha = np.array([np.mean(a, axis=0) for a in norm_alpha])
-            plot_violin(mean_norm_alpha.T, x_label="Mode", y_label="Mean alpha",filename=f'{plot_dir}/mean_norm_alpha.pdf')
+            plot_box(mean_norm_alpha.T.tolist(),
+                     labels=list(range(1,len(mean_norm_alpha.T)+1)),
+                     plot_samples=False,
+                     x_label="Mode",
+                     y_label="Mean alpha",
+                     filename=f'{plot_dir}/mean_norm_alpha.pdf'
+                     )
 
             std_norm_alpha = np.array([np.std(a, axis=0) for a in norm_alpha])
-            plot_violin(std_norm_alpha.T, x_label="Mode", y_label="Std alpha",filename=f'{plot_dir}/std_norm_alpha.pdf')
-            '''
+            plot_box(std_norm_alpha.T.tolist(),
+                     labels=list(range(1,len(std_norm_alpha.T)+1)),
+                     plot_samples=False,
+                     x_label="Mode",
+                     y_label="Std alpha",
+                     filename=f'{plot_dir}/std_norm_alpha.pdf'
+                     )
 
 
 
