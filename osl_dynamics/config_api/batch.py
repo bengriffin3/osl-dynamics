@@ -1016,7 +1016,7 @@ class BatchAnalysis:
             # Plot the covariance matrix first.
             plot_matrices(covs,
                           group_color_scale=False,
-                          titles=[f'Matrix {i+1}' for i in range(len(covs))],
+                          #titles=[f'Matrix {i+1}' for i in range(len(covs))],
                           filename=f'{plot_dir}/covs.pdf')
 
             # Calculate the Riemannian distance of covariance matrices
