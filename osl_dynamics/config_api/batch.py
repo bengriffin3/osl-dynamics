@@ -1015,12 +1015,12 @@ class BatchAnalysis:
         if covs is not None:
             riem = twopair_riemannian_distance(covs,covs)
             if model == 'dynemo':
-                index = np.argsort(np.mean(mean_norm_alpha,axis=0))[::-1]
+                index = np.argsort(np.median(mean_norm_alpha,axis=0))[::-1]
             else:
-                index = np.argsort(np.mean(fo,axis=0))[::-1]
+                index = np.argsort(np.median(fo,axis=0))[::-1]
             riem_reordered = riem[index,:]
             riem_reordered = riem_reordered[:,index]
-            indices = {'row':index.tolist(),'col':index.tolist()}
+            indices = {'row':(index+1).tolist(),'col':(index+1).tolist()}
             plot_mode_pairing(riem,filename=f'{plot_dir}/riem.pdf')
             plot_mode_pairing(riem_reordered,indices,filename=f'{plot_dir}/riem_reordered.pdf')
 
