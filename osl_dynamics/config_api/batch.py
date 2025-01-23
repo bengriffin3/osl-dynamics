@@ -943,6 +943,8 @@ class BatchAnalysis:
             plot_box(fo.T.tolist(),
                      labels=list(range(1,len(fo.T)+1)),
                      plot_samples=False,
+                     mark_best=False,
+                     plot_kwargs={'showfliers': True},
                      x_label="State",
                      y_label="Fractional Occupancy",
                      filename=f'{plot_dir}/fo.pdf'
@@ -953,6 +955,8 @@ class BatchAnalysis:
             plot_box(lt.T.tolist(),
                      labels=list(range(1,len(lt.T)+1)),
                      plot_samples=False,
+                     mark_best=False,
+                     plot_kwargs={'showfliers': True},
                      x_label="State",
                      y_label="Mean Lifetime (s)",
                      filename=f'{plot_dir}/lt.pdf'
@@ -963,6 +967,8 @@ class BatchAnalysis:
             plot_box(intv.T.tolist(),
                      labels=list(range(1,len(intv.T)+1)),
                      plot_samples=False,
+                     mark_best=False,
+                     plot_kwargs={'showfliers': True},
                      x_label="State",
                      y_label="Mean Interval (s)",
                      filename=f'{plot_dir}/intv.pdf')
@@ -975,6 +981,8 @@ class BatchAnalysis:
             plot_box(mean_norm_alpha.T.tolist(),
                      labels=list(range(1,len(mean_norm_alpha.T)+1)),
                      plot_samples=False,
+                     mark_best=False,
+                     plot_kwargs={'showfliers': True},
                      x_label="Mode",
                      y_label="Mean alpha",
                      filename=f'{plot_dir}/mean_norm_alpha.pdf'
@@ -984,6 +992,8 @@ class BatchAnalysis:
             plot_box(std_norm_alpha.T.tolist(),
                      labels=list(range(1,len(std_norm_alpha.T)+1)),
                      plot_samples=False,
+                     mark_best=False,
+                     plot_kwargs={'showfliers': True},
                      x_label="Mode",
                      y_label="Std alpha",
                      filename=f'{plot_dir}/std_norm_alpha.pdf'
