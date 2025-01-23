@@ -25,7 +25,7 @@ from ..inference.metrics import twopair_riemannian_distance
 from ..inference.modes import (argmax_time_courses, fractional_occupancies,
                                mean_lifetimes,mean_intervals,reweight_alphas,hungarian_pair)
 from ..utils.misc import override_dict_defaults
-from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing
+from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing, plot_matrices
 
 
 
@@ -1013,6 +1013,10 @@ class BatchAnalysis:
                      )
 
         if covs is not None:
+            # Plot the covariance matrix first.
+            plot_matrices(covs,group_color_scale=False,filename=f'{plot_dir}/covs.pdf')
+
+            # Calculate the Riemannian distance of covariance matrices
             riem = twopair_riemannian_distance(covs,covs)
             if model == 'dynemo':
                 index = np.argsort(np.median(mean_norm_alpha,axis=0))[::-1]
