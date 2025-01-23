@@ -941,7 +941,7 @@ class BatchAnalysis:
             fo = fractional_occupancies(stc)
             print(f'Fractional occupancy shape: {fo.shape}')
             plot_box(fo.T.tolist(),
-                     labels = list(range(1,len(fo)+1)),
+                     labels = list(range(1,len(fo.T)+1)),
                      plot_samples=False,
                      x_label="State",
                      y_label="Fractional Occupancy",
