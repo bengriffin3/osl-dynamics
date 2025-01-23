@@ -21,10 +21,14 @@ import pandas as pd
 from .pipeline import run_pipeline_from_file
 from ..data.base import Data
 from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo, BCV, NCV
+from ..inference.metrics import twopair_riemannian_distance
 from ..inference.modes import (argmax_time_courses, fractional_occupancies,
-                               mean_lifetimes,mean_intervals,reweight_alphas)
+                               mean_lifetimes,mean_intervals,reweight_alphas,hungarian_pair)
 from ..utils.misc import override_dict_defaults
-from ..utils.plotting import plot_box, plot_alpha, plot_violin
+from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing
+
+
+
 
 
 class IndexParser:
@@ -826,9 +830,7 @@ class BatchAnalysis:
         return np.mean(np.diagonal(riem_reorder))
 
     def _spatial_reproducibility(self,cov_1,cov_2,normalisation=False,filename=None):
-        from osl_dynamics.inference.metrics import twopair_riemannian_distance
-        from osl_dynamics.inference.modes import hungarian_pair
-        from osl_dynamics.utils.plotting import plot_mode_pairing
+
         if isinstance(cov_1,str):
             cov_1 = np.load(cov_1)
         if isinstance(cov_2,str):
@@ -1009,6 +1011,19 @@ class BatchAnalysis:
                      y_label="Std alpha",
                      filename=f'{plot_dir}/std_norm_alpha.pdf'
                      )
+
+        if covs is not None:
+            riem = twopair_riemannian_distance(covs,covs)
+            if model == 'dynemo':
+                index = np.argsort(np.mean(mean_norm_alpha,axis=0))[::-1]
+            else:
+                index = np.argsort(np.mean(fo,axis=0))[::-1]
+            riem_reordered = riem[index,:]
+            riem_reordered = riem_reordered[:,index]
+            indices = {'row':index.tolist(),'col':index.tolist()}
+            plot_mode_pairing(riem,filename=f'{plot_dir}/riem.pdf')
+            plot_mode_pairing(riem_reordered,indices,filename=f'{plot_dir}/riem_reordered.pdf')
+
 
 
 
