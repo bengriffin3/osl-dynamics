@@ -988,6 +988,17 @@ class BatchAnalysis:
                      filename=f'{plot_dir}/mean_norm_alpha.pdf'
                      )
 
+            max_norm_alpha = np.array([np.max(a, axis=0) for a in norm_alpha])
+            plot_box(max_norm_alpha.T.tolist(),
+                     labels=list(range(1, len(max_norm_alpha.T) + 1)),
+                     plot_samples=False,
+                     mark_best=False,
+                     plot_kwargs={'showfliers': True},
+                     x_label="Mode",
+                     y_label="Max alpha",
+                     filename=f'{plot_dir}/max_norm_alpha.pdf'
+                     )
+
             std_norm_alpha = np.array([np.std(a, axis=0) for a in norm_alpha])
             plot_box(std_norm_alpha.T.tolist(),
                      labels=list(range(1,len(std_norm_alpha.T)+1)),
