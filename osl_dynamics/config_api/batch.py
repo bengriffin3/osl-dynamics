@@ -1023,8 +1023,16 @@ class BatchAnalysis:
 
             # Convert covs to corrs and then plot
             corrs = cov2corr(covs)
-            plot_matrices(corrs,
+
+            corrs_zero_diag = np.copy(corrs)
+
+            # Set the diagonal of each (n_channels, n_channels) matrix to zero
+            for i in range(corrs_zero_diag.shape[0]):
+                np.fill_diagonal(corrs_zero_diag[i], 0)
+            plot_matrices(corrs_zero_diag,
                           group_color_scale=True,
+                          v_min=-1.0,
+                          v_max=1.0,
                           # titles=[f'Matrix {i+1}' for i in range(len(covs))],
                           filename=f'{plot_dir}/corrs.pdf')
             # Calculate sum of degrees.

@@ -1225,6 +1225,8 @@ def plot_epoched_time_series(
 def plot_matrices(
         matrix,
         group_color_scale=True,
+        v_min=None,
+        v_max=None,
         titles=None,
         main_title=None,
         cmap="viridis",
@@ -1244,6 +1246,10 @@ def plot_matrices(
     group_color_scale: bool, optional
         If True, all matrices will have the same colormap scale, where we use
         the minimum and maximum across all matrices as the scale.
+    v_min: float, optional
+        The minimal value for colorbar
+    v_max: float, optional
+        The maximal value for colorbar.
     titles: list of str, optional
         Titles to give to each matrix axis.
     main_title: str, optional
@@ -1285,8 +1291,10 @@ def plot_matrices(
             axis.remove()
             continue
         if group_color_scale:
-            v_min = np.nanmin(matrix)
-            v_max = np.nanmax(matrix)
+            if v_min is None:
+                v_min = np.nanmin(matrix)
+            if v_max is None:
+                v_max = np.nanmax(matrix)
             if log_norm:
                 im = axis.matshow(
                     grid,
