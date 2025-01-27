@@ -1031,6 +1031,7 @@ class BatchAnalysis:
                 np.fill_diagonal(corrs_zero_diag[i], 0)
             plot_matrices(corrs_zero_diag,
                           group_color_scale=True,
+                          cmap='coolwarm',
                           v_min=-1.0,
                           v_max=1.0,
                           # titles=[f'Matrix {i+1}' for i in range(len(covs))],
