@@ -1035,7 +1035,7 @@ class BatchAnalysis:
             sum_of_degrees = np.array(sum_of_degrees)
             np.save(f'{plot_dir}/corr_sum_of_degree.npy',sum_of_degrees)
 
-            ic2surface(ica_spatial_maps = f'{self.config_root["spatial_maps"]}/melodic_IC.dscalar.nii',
+            ic2surface(ica_spatial_maps = f'{self.config_root["spatial_map"]}/melodic_IC.dscalar.nii',
                        ic_values=sum_of_degrees,
                        output_file=f'{plot_dir}/corr_surface_map.dscalar.nii')
 
