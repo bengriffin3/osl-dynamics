@@ -1042,7 +1042,7 @@ class BatchAnalysis:
             render(img=f'{plot_dir}/corr_surface_map.dscalar.nii',
                    save_dir=f'{plot_dir}/brain_map/',
                    gui=False,
-                   image_name=f'{plot_dir}/brain_map/',
+                   image_name=f'{plot_dir}/brain_map/fc_sum_of_degree',
                    input_is_cifti=True)
 
 
