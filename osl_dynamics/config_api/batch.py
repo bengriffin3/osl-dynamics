@@ -1033,7 +1033,7 @@ class BatchAnalysis:
                 correlation = corrs[i, :, :]
                 sum_of_degrees.append(np.sum(correlation, axis=1))
             sum_of_degrees = np.array(sum_of_degrees)
-            np.save(f'{plot_dir}/corr_sum_of_degree.npy')
+            np.save(f'{plot_dir}/corr_sum_of_degree.npy',sum_of_degrees)
 
             ic2surface(ica_spatial_maps = f'{self.config_root["spatial_maps"]}/melodic_IC.dscalar.nii',
                        ic_values=sum_of_degrees,
