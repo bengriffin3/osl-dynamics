@@ -28,7 +28,7 @@ from ..analysis.power import independent_components_to_surface_maps as ic2surfac
 from ..analysis.workbench import render
 from ..utils.misc import override_dict_defaults
 from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing, plot_matrices, plot_brain_surface
-from ..array_ops import cov2corr
+from ..array_ops import cov2corr, first_eigenvector
 
 
 
@@ -1036,22 +1036,35 @@ class BatchAnalysis:
                           v_max=1.0,
                           # titles=[f'Matrix {i+1}' for i in range(len(covs))],
                           filename=f'{plot_dir}/corrs.pdf')
-            # Calculate sum of degrees.
+            # Rank-one approximation
+            r1_approxs = []
             sum_of_degrees = []
             for i in range(len(corrs)):
                 correlation = corrs[i, :, :]
+                r1_approxs.append(first_eigenvector(correlation))
+                np.fill_diagonal(correlation, 0)
                 sum_of_degrees.append(np.sum(correlation, axis=1))
+            r1_approxs = np.array(r1_approxs)
             sum_of_degrees = np.array(sum_of_degrees)
+            np.save(f'{save_dir}r1_approx_FC.npy', r1_approxs)
             np.save(f'{plot_dir}/corr_sum_of_degree.npy',sum_of_degrees)
 
             ic2surface(ica_spatial_maps = f'{self.config_root["spatial_map"]}/melodic_IC.dscalar.nii',
                        ic_values=sum_of_degrees,
-                       output_file=f'{plot_dir}/corr_surface_map.dscalar.nii')
+                       output_file=f'{plot_dir}/corr_sum_of_degree_surface_map.dscalar.nii')
+            ic2surface(ica_spatial_maps=f'{self.config_root["spatial_map"]}/melodic_IC.dscalar.nii',
+                       ic_values=r1_approxs,
+                       output_file=f'{plot_dir}/corr_r1_approx_surface_map.dscalar.nii')
 
-            render(img=f'{plot_dir}/corr_surface_map.dscalar.nii',
-                   save_dir=f'{plot_dir}/brain_map/',
+            render(img=f'{plot_dir}/corr_sum_of_degree_surface_map.dscalar.nii',
+                   save_dir=f'{plot_dir}/brain_map/sum_of_degree',
                    gui=False,
                    image_name=f'{plot_dir}/brain_map/fc_sum_of_degree',
+                   input_is_cifti=True)
+            render(img=f'{plot_dir}/corr_r1_approx_surface_map.dscalar.nii',
+                   save_dir=f'{plot_dir}/brain_map/r1_approx',
+                   gui=False,
+                   image_name=f'{plot_dir}/brain_map/fc_r1_approx',
                    input_is_cifti=True)
 
 
