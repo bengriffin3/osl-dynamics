@@ -24,9 +24,11 @@ from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo,
 from ..inference.metrics import twopair_riemannian_distance
 from ..inference.modes import (argmax_time_courses, fractional_occupancies,
                                mean_lifetimes,mean_intervals,reweight_alphas,hungarian_pair)
+from ..analysis.power import independent_components_to_surface_maps as ic2surface
+from ..analysis.workbench import render
 from ..utils.misc import override_dict_defaults
-from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing, plot_matrices
-
+from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing, plot_matrices, plot_brain_surface
+from ..array_ops import cov2corr
 
 
 
@@ -1018,6 +1020,29 @@ class BatchAnalysis:
                           group_color_scale=False,
                           #titles=[f'Matrix {i+1}' for i in range(len(covs))],
                           filename=f'{plot_dir}/covs.pdf')
+
+            # Convert covs to corrs and then plot
+            corrs = cov2corr(covs)
+            plot_matrices(corrs,
+                          group_color_scale=True,
+                          # titles=[f'Matrix {i+1}' for i in range(len(covs))],
+                          filename=f'{plot_dir}/corrs.pdf')
+            # Calculate sum of degrees.
+            sum_of_degrees = []
+            for i in range(len(corrs)):
+                correlation = corrs[i, :, :]
+                sum_of_degrees.append(np.sum(correlation, axis=1))
+            sum_of_degrees = np.array(sum_of_degrees)
+            np.save(f'{plot_dir}/corr_sum_of_degree.npy')
+
+            ic2surface(ica_spatial_maps = f'{self.config_root["spatial_maps"]}/melodic_IC.dscalar.nii',
+                       ic_values=sum_of_degrees,
+                       output_file=f'{plot_dir}/corr_surface_map.dscalar.nii')
+
+            render(img=f'{plot_dir}/corr_surface_map.dscalar.nii',
+                   save_dir=f'{plot_dir}/brain_map/',
+                   input_is_cifti=True)
+
 
             # Calculate the Riemannian distance of covariance matrices
             riem = twopair_riemannian_distance(covs,covs)
