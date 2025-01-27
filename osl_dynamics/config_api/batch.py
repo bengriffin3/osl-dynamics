@@ -1064,8 +1064,8 @@ class BatchAnalysis:
             riem_reordered = riem[index,:]
             riem_reordered = riem_reordered[:,index]
             indices = {'row':(index+1).tolist(),'col':(index+1).tolist()}
-            plot_mode_pairing(riem,fig_kwargs={'figsize':(16,12)},filename=f'{plot_dir}/riem.pdf')
-            plot_mode_pairing(riem_reordered,indices,fig_kwargs={'figsize':(16,12)},filename=f'{plot_dir}/riem_reordered.pdf')
+            plot_mode_pairing(riem,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem.pdf')
+            plot_mode_pairing(riem_reordered,indices,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem_reordered.pdf')
 
 
 
