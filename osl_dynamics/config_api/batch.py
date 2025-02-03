@@ -1071,7 +1071,7 @@ class BatchAnalysis:
             # Calculate the Riemannian distance of covariance matrices
             riem = twopair_riemannian_distance(covs,covs)
             if model == 'dynemo':
-                index = np.argsort(np.median(mean_norm_alpha,axis=0))[::-1]
+                index = np.argsort(np.median(std_norm_alpha,axis=0))[::-1]
             else:
                 index = np.argsort(np.median(fo,axis=0))[::-1]
             riem_reordered = riem[index,:]
@@ -1079,6 +1079,76 @@ class BatchAnalysis:
             indices = {'row':(index+1).tolist(),'col':(index+1).tolist()}
             plot_mode_pairing(riem,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem.pdf')
             plot_mode_pairing(riem_reordered,indices,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem_reordered.pdf')
+
+    def mode_contribution_analysis(self,model='dynemo',n_state=16,mode='bcv_1'):
+        save_dir = (f'{self.config_path}/{model}_state_{n_state}/{mode}/')
+        plot_dir = f'{self.analysis_path}/{model}_state_{n_state}_mode_contribution/'
+        if os.path.exists(plot_dir):
+            shutil.rmtree(plot_dir)
+        os.makedirs(plot_dir)
+        # Analyse how much log likelihood each "mode" contributes to the overall log likelihood
+        if model !='dynemo':
+            raise ValueError('This function is only for DyNeMo at present!')
+
+        with open(f'{save_dir}/Y_test/prepared_config.yaml', "r") as file:
+            config = yaml.safe_load(file)
+
+        # Load data
+        from osl_dynamics.config_api.wrappers import load_data
+        load_data_kwargs = config['load_data']
+        data = load_data(**load_data_kwargs)
+        keep_list = config['keep_list']
+        ts = [data[i] for i in keep_list]
+
+        # Load covariances
+        covs = np.load(f'{save_dir}/Y_train/inf_params/covs.npy')
+
+        # Load posterior time courses
+        with open(f'{save_dir}/Y_test/inf_params/alp.pkl', 'rb') as file:
+            alp = pickle.load(file)
+
+        # Concatenate everything to numpy
+        ts_np = np.concatenate(ts)
+        alp_np = np.concatenate(alp)
+
+        print('Check the size of each numpy array')
+        print(f'Shape of data:{ts_np.shape}')
+        print(f'shape of alpha: {alp_np.shape}')
+
+        # Compute the moment-to-moment covariance matrices
+        C_t = np.einsum('ns,sij->nij', alp_np, covs)
+
+        # Compute inverse and log determinant of each covariance matrix
+        inv_C = np.linalg.inv(C_t)
+        logdet_C = np.log(np.linalg.det(C_t))
+
+        # Compute quadratic term using einsum
+        quad_term = np.einsum('ni,nij,nj->n', ts_np, inv_C, ts_np)
+
+        # Calculate log likelihood
+        d = ts_np.shape[1]
+        log_likelihood = -0.5 * (quad_term + logdet_C + d * np.log(2 * np.pi))
+        print(f'Average log likelihood is: {log_likelihood}')
+
+        contributions = np.zeros(16)
+
+        for s in range(16):
+            # Precompute inverse and logdet for mode s
+            C_s = covs[s]
+            invC_s = np.linalg.inv(C_s)
+            logdet_s = np.log(np.linalg.det(C_s))
+
+            # Compute quadratic term for all data points under mode s
+            quad_term_s = np.einsum('ni,ij,nj->n', ts_np, invC_s, ts_np)
+
+            # Log likelihood for mode s across all data points
+            logpdf_s = -0.5 * (quad_term_s + logdet_s + d * np.log(2 * np.pi))
+
+            # Weight by alpha and sum
+            contributions[s] = np.sum(alp_np[:, s] * logpdf_s)
+
+        print(f'Contribution of each mode:{contributions}')
+        np.save(f'{plot_dir}/likelihood_contribute.npy',contributions)
 
 
 
