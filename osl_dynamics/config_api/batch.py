@@ -1161,7 +1161,7 @@ class BatchAnalysis:
         if not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
 
-        n_states = self.config_root['batch_variable']['n_states']
+        n_states = self.config_root['n_states']
 
         ll_before_silencing = []
         for n_state in n_states:
