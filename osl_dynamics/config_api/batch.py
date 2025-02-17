@@ -1150,6 +1150,36 @@ class BatchAnalysis:
         print(f'Contribution of each mode:{contributions}')
         np.save(f'{plot_dir}/likelihood_contribute.npy',contributions)
 
+    def silencing_analysis(self,model='dynemo',mode='bcv_1',start_index=12):
+        import matplotlib.pyplot as plt
+        # Plot directory
+        plot_dir = f'{self.analysis_path}/silencing/'
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+
+        plot_dir = f'{plot_dir}/{mode}/'
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+
+        n_states = self.config_root['batch_variable']['n_states']
+
+        ll_before_silencing = []
+        for n_state in n_states:
+            with open(f'{self.config_root}/{model}_state_{n_state}/mode/Y_test/metrics.json', 'r') as file:
+                metric = json.load(file)[object]
+            ll_before_silencing.append(metric)
+
+        plt.plot(n_states,ll_before_silencing)
+        plt.savefig(f'{plot_dir}/ll_before_silencing.jpg')
+        plt.close()
+
+
+
+
+
+
+
+
 
 
 
