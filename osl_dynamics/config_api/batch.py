@@ -1165,7 +1165,7 @@ class BatchAnalysis:
 
         ll_before_silencing = []
         for n_state in n_states:
-            with open(f'{self.config_root}/{model}_state_{n_state}/mode/Y_test/metrics.json', 'r') as file:
+            with open(f'{self.config_path}/{model}_state_{n_state}/mode/Y_test/metrics.json', 'r') as file:
                 metric = json.load(file)[object]
             ll_before_silencing.append(metric)
 
