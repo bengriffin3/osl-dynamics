@@ -1150,7 +1150,7 @@ class BatchAnalysis:
         print(f'Contribution of each mode:{contributions}')
         np.save(f'{plot_dir}/likelihood_contribute.npy',contributions)
 
-    def silencing_analysis(self,model='dynemo',mode='bcv_1',start_index=12,threshold=0.005):
+    def silencing_analysis(self,model='dynemo',mode='bcv_1',start_index=12,threshold=0.002):
         import matplotlib.pyplot as plt
         from osl_dynamics.config_api.wrappers import load_data
         from osl_dynamics.inference.modes import reweight_alphas
@@ -1254,7 +1254,7 @@ class BatchAnalysis:
         plt.grid(True, linestyle="--", alpha=0.6)  # Add grid for better readability
 
         # Save the plot
-        plt.savefig("ll_comparison.pdf", bbox_inches="tight")
+        plt.savefig(f'{plot_dir}/ll_comparison.pdf', bbox_inches="tight")
         plt.close()
 
 
