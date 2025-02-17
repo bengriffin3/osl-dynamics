@@ -1166,7 +1166,7 @@ class BatchAnalysis:
         ll_before_silencing = []
         for n_state in n_states:
             with open(f'{self.config_path}/{model}_state_{n_state}/{mode}/Y_test/metrics.json', 'r') as file:
-                metric = json.load(file)[object]
+                metric = json.load(file)['log_likelihood']
             ll_before_silencing.append(metric)
 
         plt.plot(n_states,ll_before_silencing)
