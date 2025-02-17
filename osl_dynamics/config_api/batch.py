@@ -1150,8 +1150,10 @@ class BatchAnalysis:
         print(f'Contribution of each mode:{contributions}')
         np.save(f'{plot_dir}/likelihood_contribute.npy',contributions)
 
-    def silencing_analysis(self,model='dynemo',mode='bcv_1',start_index=12):
+    def silencing_analysis(self,model='dynemo',mode='bcv_1',start_index=12,threshold=0.005):
         import matplotlib.pyplot as plt
+        from osl_dynamics.config_api.wrappers import load_data
+        from osl_dynamics.inference.modes import reweight_alphas
         # Plot directory
         plot_dir = f'{self.analysis_path}/silencing/'
         if not os.path.exists(plot_dir):
@@ -1164,10 +1166,37 @@ class BatchAnalysis:
         n_states = self.config_root['n_states']
 
         ll_before_silencing = []
+        ll_after_silencing = []
+
+        with open(f'{self.config_path}/{model}_state_1/{mode}/Y_test/prepared_config.yaml', 'r') as file:
+            config = yaml.safe_load(file)
+        load_data_kwargs = config['load_data']
+        data = load_data(**load_data_kwargs)
+        keep_list = config['keep_list']
+
+        ts = [data[i] for i in keep_list]
+        ts_np = np.concatenate(ts)
+
         for n_state in n_states:
             with open(f'{self.config_path}/{model}_state_{n_state}/{mode}/Y_test/metrics.json', 'r') as file:
                 metric = json.load(file)['log_likelihood']
             ll_before_silencing.append(metric)
+
+            # Check whether states need silencing
+            if n_state<=start_index:
+                ll_after_silencing.append(metric)
+            else:
+                # Load covariances
+                covs = np.load(f'{self.config_path}/{model}_state_{n_state}/{mode}/Y_train/inf_params/covs.npy')
+                # Load posterior time courses
+                with open(f'{self.config_path}/{model}_state_{n_state}/{mode}//Y_test/inf_params/alp.pkl', 'rb') as file:
+                    alp = pickle.load(file)
+                norm_alp = reweight_alphas(alp, covs)
+                std_norm_alpha = np.array([np.std(a, axis=0) for a in norm_alp])
+                print(f'n_state: {n_state},covs.shape: {covs.shape},std_norm_alpha.shape:{std_norm_alpha.shape}')
+
+
+
 
         plt.plot(n_states,ll_before_silencing)
         plt.savefig(f'{plot_dir}/ll_before_silencing.jpg')
