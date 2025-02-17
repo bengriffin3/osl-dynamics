@@ -1154,6 +1154,30 @@ class BatchAnalysis:
         import matplotlib.pyplot as plt
         from osl_dynamics.config_api.wrappers import load_data
         from osl_dynamics.inference.modes import reweight_alphas
+
+        def calculate_log_likelihood(covs, alpha, ts, remove_modes=None):
+            if isinstance(alpha, list):
+                alpha = np.concatenate(alpha)
+            if isinstance(ts, list):
+                ts = np.concatenate(ts)
+
+            if remove_modes is not None:
+                alpha[:, np.array(remove_modes) - 1] = 0
+            # Compute the moment-to-moment covariance matrices
+            C_t = np.einsum('ns,sij->nij', alpha, covs)
+
+            # Compute inverse and log determinant of each covariance matrix
+            inv_C = np.linalg.inv(C_t)
+            logdet_C = np.log(np.linalg.det(C_t))
+
+            # Compute quadratic term using einsum
+            quad_term = np.einsum('ni,nij,nj->n', ts, inv_C, ts)
+
+            # Calculate log likelihood
+            d = ts_np.shape[1]
+            log_likelihood = -0.5 * (quad_term + logdet_C + d * np.log(2 * np.pi))
+            return np.mean(log_likelihood)
+
         # Plot directory
         plot_dir = f'{self.analysis_path}/silencing/'
         if not os.path.exists(plot_dir):
@@ -1167,6 +1191,7 @@ class BatchAnalysis:
 
         ll_before_silencing = []
         ll_after_silencing = []
+        remove_modes = {}
 
         with open(f'{self.config_path}/{model}_state_1/{mode}/Y_test/prepared_config.yaml', 'r') as file:
             config = yaml.safe_load(file)
@@ -1193,13 +1218,41 @@ class BatchAnalysis:
                     alp = pickle.load(file)
                 norm_alp = reweight_alphas(alp, covs)
                 std_norm_alpha = np.array([np.std(a, axis=0) for a in norm_alp])
-                print(f'n_state: {n_state},covs.shape: {covs.shape},std_norm_alpha.shape:{std_norm_alpha.shape}')
 
+                plot_box(std_norm_alpha.T.tolist(),
+                         labels=list(range(1, len(std_norm_alpha.T) + 1)),
+                         plot_samples=False,
+                         mark_best=False,
+                         plot_kwargs={'showfliers': True},
+                         x_label="Mode",
+                         y_label="Std Norm Alpha",
+                         filename=f'{plot_dir}/std_norm_alpha_state_{n_state}.pdf'
+                         )
+                remove_modes[n_state] = (np.where(np.median(std_norm_alpha, axis=0) < threshold)[0] + 1).tolist()
 
+                ll_after_silencing.append(float(calculate_log_likelihood(covs, alp, ts, remove_modes=remove_modes[n_state])))
 
+            with open(f'{plot_dir}/ll_before_silencing.json', "w") as f:
+                json.dump(ll_before_silencing, f)
+            with open(f'{plot_dir}/ll_after_silencing.json', "w") as f:
+                json.dump(ll_after_silencing, f)
+            with open(f'{plot_dir}/remove_modes.json', "w") as f:
+                json.dump(remove_modes, f)
 
-        plt.plot(n_states,ll_before_silencing)
-        plt.savefig(f'{plot_dir}/ll_before_silencing.jpg')
+        # Create plot
+        plt.figure(figsize=(6, 4))  # Set figure size
+        plt.plot(n_states, ll_before_silencing, label="Before Silencing", marker="o", linestyle="-")
+        plt.plot(n_states, ll_after_silencing, label="After Silencing", marker="s", linestyle="--")
+
+        # Labels and title
+        plt.xlabel("Number of Modes")
+        plt.ylabel("Log-Likelihood")
+        plt.title("Comparison of Log-Likelihood Before and After Silencing")
+        plt.legend()  # Add legend
+        plt.grid(True, linestyle="--", alpha=0.6)  # Add grid for better readability
+
+        # Save the plot
+        plt.savefig("ll_comparison.pdf", bbox_inches="tight")
         plt.close()
 
 
