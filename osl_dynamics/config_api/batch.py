@@ -1232,12 +1232,12 @@ class BatchAnalysis:
 
                 ll_after_silencing.append(float(calculate_log_likelihood(covs, alp, ts, remove_modes=remove_modes[n_state])))
 
-            with open(f'{plot_dir}/ll_before_silencing.json', "w") as f:
-                json.dump(ll_before_silencing, f)
-            with open(f'{plot_dir}/ll_after_silencing.json', "w") as f:
-                json.dump(ll_after_silencing, f)
-            with open(f'{plot_dir}/remove_modes.json', "w") as f:
-                json.dump(remove_modes, f)
+        with open(f'{plot_dir}/ll_before_silencing.json', "w") as f:
+            json.dump(ll_before_silencing, f)
+        with open(f'{plot_dir}/ll_after_silencing.json', "w") as f:
+            json.dump(ll_after_silencing, f)
+        with open(f'{plot_dir}/remove_modes.json', "w") as f:
+            json.dump(remove_modes, f)
 
         # Create plot
         plt.figure(figsize=(6, 4))  # Set figure size
