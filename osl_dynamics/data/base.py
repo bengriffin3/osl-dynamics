@@ -381,7 +381,7 @@ class Data:
 
         return self
 
-    def filter(self, low_freq=None, high_freq=None, use_raw=False,session_length=None):
+    def filter(self, low_freq=None, high_freq=None, sigma=None, use_raw=False,session_length=None):
         """Filter the data.
 
         This is an in-place operation.
@@ -394,6 +394,9 @@ class Data:
         high_freq : float, optional
             Frequency in Hz for a low pass filter. If :code:`None`, no low pass
             filtering is applied.
+        sigma: float, optional
+            If sigma is not None, apply a Gaussian-weighted least-squares straight-line fitting
+            with sigma as the hyperparameter. The unit is "second".
         use_raw : bool, optional
             Should we prepare the original 'raw' data that we loaded?
         session_length: int, optional
@@ -404,7 +407,7 @@ class Data:
         data : osl_dynamics.data.Data
             The modified Data object.
         """
-        if low_freq is None and high_freq is None:
+        if low_freq is None and high_freq is None and sigma is None:
             _logger.warning("No filtering applied.")
             return
 
@@ -418,6 +421,7 @@ class Data:
 
         self.low_freq = low_freq
         self.high_freq = high_freq
+        self.sigma = sigma
 
         # Function to apply filtering to a single array
         def _apply(array, prepared_data_file):
@@ -425,7 +429,7 @@ class Data:
             if session_length is None:
                 # Apply filtering to the entire array
                 array = processing.temporal_filter(
-                    array, low_freq, high_freq, self.sampling_frequency
+                    array, low_freq, high_freq, sigma, self.sampling_frequency
                 )
             else:
                 # Apply filtering to each session separately
@@ -433,7 +437,7 @@ class Data:
                 for start in range(0, n_timepoints, session_length):
                     end = min(start + session_length, n_timepoints)
                     filtered_array[start:end] = processing.temporal_filter(
-                        array[start:end], low_freq, high_freq, self.sampling_frequency
+                        array[start:end], low_freq, high_freq, sigma, self.sampling_frequency
                     )
                 array = filtered_array
 
