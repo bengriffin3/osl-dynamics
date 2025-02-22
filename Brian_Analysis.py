@@ -57,9 +57,13 @@ if __name__ == '__main__':
             plot_mode_pairing(riem_reorder, indice, x_label='2nd half states', y_label='1st half states',
                               filename=f'{plot_dir}/scan_reproducibility_{i}_{j}.jpg')
             scan_metric.append(float(np.mean(np.diagonal(riem_reorder))))
+
+            # Save indices for later use
+            with open(f"{plot_dir}/state_matching_indices_{i}_{j}.json", "w") as f:
+                json.dump(indice, f)
     with open(f"{plot_dir}/scan_reproducibility.json", "w") as f:
         json.dump(scan_metric, f)
-
+    '''
     # Step 3: Dual estimation for each subject
     # Scan 1
     with open(f"{save_dir_1}/repeat_1/prepared_config.yaml", "r") as file:
@@ -82,3 +86,4 @@ if __name__ == '__main__':
         model = load(f'{save_dir_2}/repeat_{i}/model/')
         _, covs = model.dual_estimation(data_2)
         np.save(f'{plot_dir}/second_scan_covs_{i}.npy',covs)
+    '''
