@@ -117,7 +117,7 @@ if __name__ == '__main__':
         [-0.2, 1.0]]
         ]
     ])
-    indices = {1,0}
+    indices = [1,0]
     print('Real output is:',create_feature_vectors(covs,indices))
     print('The expected output is:')
     print(np.array([
