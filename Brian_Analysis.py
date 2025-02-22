@@ -125,6 +125,48 @@ if __name__ == '__main__':
         [1.0,1.0,-0.2,1.0,1.0,0.2]
     ]))
     '''
+    with open(f"{save_dir_1}/repeat_1/prepared_config.yaml", "r") as file:
+        config_1 = yaml.safe_load(file)
+    load_data_kwargs_1 = config_1['load_data']
+    data_1 = load_data(**load_data_kwargs_1)
+
+    for i in range(1, 4):
+        model = load(f'{save_dir_1}/repeat_{i}/model/')
+        _, covs = model.dual_estimation(data_1)
+        np.save(f'{plot_dir}/first_scan_covs_{i}.npy', covs)
+
+    # Scan 2
+    with open(f"{save_dir_2}/repeat_1/prepared_config.yaml", "r") as file:
+        config_2 = yaml.safe_load(file)
+    load_data_kwargs_2 = config_2['load_data']
+    data_2 = load_data(**load_data_kwargs_2)
+
+    sFC_1, sFC_2 = [],[]
+    for ts in data_1.time_series():
+        sFC_1.append(np.corrcoef(ts, rowvar=False))
+
+    for ts in data_2.time_series():
+        sFC_2.append(np.corrcoef(ts,rowvar=False))
+    sFC_1 = np.array(sFC_1)
+    sFC_2 = np.array(sFC_2)
+    np.save(f'{plot_dir}/static_first_scan.npy',sFC_1)
+    np.save(f'{plot_dir}/static_second_scan.npy',sFC_2)
+
+    upper_tri_indices = np.triu_indices(50, k=0)  # k=0 includes the diagonal
+    sFC_1_flattened = sFC_1[:, upper_tri_indices[0], upper_tri_indices[1]]
+    sFC_2_flattened = sFC_2[:, upper_tri_indices[0], upper_tri_indices[1]]
+
+    N_subjects = len(sFC_1)
+
+    # Compute Between-Session Similarity Matrix using Pearson correlation
+    similarity_matrix = np.corrcoef(sFC_1_flattened, sFC_2_flattened)[:N_subjects, N_subjects:]
+
+    # Evaluate Subject Label Prediction Accuracy
+    correct_matches = np.argmax(similarity_matrix, axis=1) == np.arange(N_subjects)
+    prediction_accuracy = np.mean(correct_matches)
+    print('sFC prediction accuracy:', prediction_accuracy)
+
+    # Calculate static functional connectivity
     # Step 5 & 6: Compute similarity matrix and evaluate prediction accuracy
     for i in range(1, 4):
         for j in range(1, 4):
@@ -140,7 +182,7 @@ if __name__ == '__main__':
 
             # Generate feature vectors for both sessions using matched states
             session1_features = create_feature_vectors(session1_covs, indices['row'])
-            session2_features = create_feature_vectors(session2_covs, indices['row'])
+            session2_features = create_feature_vectors(session2_covs, indices['col'])
 
             # Compute Between-Session Similarity Matrix using Pearson correlation
             similarity_matrix = np.corrcoef(session1_features, session2_features)[:N_subjects, N_subjects:]
