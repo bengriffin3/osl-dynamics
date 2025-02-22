@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
         return feature_vectors
 
-
+    '''
     # Define a very simple test case:
     covs = np.array([
         [
@@ -124,6 +124,7 @@ if __name__ == '__main__':
         [1.0,1.0,-0.5,1.0,1.0,0.5],
         [1.0,1.0,-0.2,1.0,1.0,0.2]
     ]))
+    '''
     # Step 5 & 6: Compute similarity matrix and evaluate prediction accuracy
     for i in range(1, 4):
         for j in range(1, 4):
@@ -139,7 +140,7 @@ if __name__ == '__main__':
 
             # Generate feature vectors for both sessions using matched states
             session1_features = create_feature_vectors(session1_covs, indices['row'])
-            session2_features = create_feature_vectors(session2_covs, indices['col'])
+            session2_features = create_feature_vectors(session2_covs, indices['row'])
 
             # Compute Between-Session Similarity Matrix using Pearson correlation
             similarity_matrix = np.corrcoef(session1_features, session2_features)[:N_subjects, N_subjects:]
