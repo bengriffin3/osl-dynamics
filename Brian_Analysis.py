@@ -102,6 +102,28 @@ if __name__ == '__main__':
         return feature_vectors
 
 
+    # Define a very simple test case:
+    covs = np.array([
+        [
+        [[1.0,0.5],
+        [0.5,1.0]],
+        [[1.0,-0.5],
+        [-0.5,1.0]]
+        ],
+        [
+        [[1.0, 0.2],
+        [0.2, 1.0]],
+        [[1.0, -0.2],
+        [-0.2, 1.0]]
+        ]
+    ])
+    indices = {1,0}
+    print('Real output is:',create_feature_vectors(covs,indices))
+    print('The expected output is:')
+    print(np.array([
+        [1.0,1.0,-0.5,1.0,1.0,0.5],
+        [1.0,1.0,-0.2,1.0,1.0,0.2]
+    ]))
     # Step 5 & 6: Compute similarity matrix and evaluate prediction accuracy
     for i in range(1, 4):
         for j in range(1, 4):
