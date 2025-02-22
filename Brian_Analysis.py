@@ -18,8 +18,8 @@ if __name__ == '__main__':
     # First scan reproducibility
     split_half_metric = []
     for i in range(1,6):
-        cov_1 = np.load(f'{save_dir_1}/split{i}/partition_1/inf_params/covs.npy')
-        cov_2 = np.load(f'{save_dir_1}/split{i}/partition_1/inf_params/covs.npy')
+        cov_1 = np.load(f'{save_dir_1}/split_{i}/partition_1/inf_params/covs.npy')
+        cov_2 = np.load(f'{save_dir_1}/split_{i}/partition_1/inf_params/covs.npy')
         riem = twopair_riemannian_distance(cov_1, cov_2)
         indice, riem_reorder = hungarian_pair(riem, distance=True)
         plot_mode_pairing(riem_reorder, indice, x_label='2nd half states', y_label='1st half states',
@@ -31,8 +31,8 @@ if __name__ == '__main__':
     # Second scan reproducibility
     split_half_metric = []
     for i in range(1, 6):
-        cov_1 = np.load(f'{save_dir_2}/split{i}/partition_1/inf_params/covs.npy')
-        cov_2 = np.load(f'{save_dir_2}/split{i}/partition_1/inf_params/covs.npy')
+        cov_1 = np.load(f'{save_dir_2}/split_{i}/partition_1/inf_params/covs.npy')
+        cov_2 = np.load(f'{save_dir_2}/split_{i}/partition_1/inf_params/covs.npy')
         riem = twopair_riemannian_distance(cov_1, cov_2)
         indice, riem_reorder = hungarian_pair(riem, distance=True)
         plot_mode_pairing(riem_reorder, indice, x_label='2nd half states', y_label='1st half states',
@@ -40,3 +40,17 @@ if __name__ == '__main__':
         split_half_metric.append(float(np.mean(np.diagonal(riem_reorder))))
     with open(f"{plot_dir}/split_half_second_scan.json", "w") as f:
         json.dump(split_half_metric, f)
+
+    # Step 2: Scan_1, Scan_2 Reproducibility
+    scan_metric = []
+    for i in range(1,4):
+        for j in range(1,4):
+            cov_1 = np.load(f'{save_dir_1}/repeat_{i}/inf_params/covs.npy')
+            cov_2 = np.load(f'{save_dir_2}/repeat_{j}/inf_params/covs.npy')
+            riem = twopair_riemannian_distance(cov_1, cov_2)
+            indice, riem_reorder = hungarian_pair(riem, distance=True)
+            plot_mode_pairing(riem_reorder, indice, x_label='2nd half states', y_label='1st half states',
+                              filename=f'{plot_dir}/scan_reproducibility_{i}_{j}.jpg')
+            scan_metric.append(float(np.mean(np.diagonal(riem_reorder))))
+    with open(f"{plot_dir}/scan_reproducibility.json", "w") as f:
+        json.dump(scan_metric, f)
