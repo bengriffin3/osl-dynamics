@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
-
+    '''
     # Step 1: Evaluate the split-half reproducibility within each model
     # First scan reproducibility
     split_half_metric = []
@@ -63,7 +63,7 @@ if __name__ == '__main__':
                 json.dump(indice, f)
     with open(f"{plot_dir}/scan_reproducibility.json", "w") as f:
         json.dump(scan_metric, f)
-    '''
+    
     # Step 3: Dual estimation for each subject
     # Scan 1
     with open(f"{save_dir_1}/repeat_1/prepared_config.yaml", "r") as file:
@@ -87,3 +87,48 @@ if __name__ == '__main__':
         _, covs = model.dual_estimation(data_2)
         np.save(f'{plot_dir}/second_scan_covs_{i}.npy',covs)
     '''
+
+
+    # Step 4: Create subject-specific feature vectors using matched states
+    def create_feature_vectors(covs, indices):
+        N_subjects, N_states, N_channels, _ = covs.shape
+        upper_tri_indices = np.triu_indices(N_channels)  # Get upper triangular indices
+        feature_vectors = np.zeros((N_subjects, N_states * len(upper_tri_indices[0])))
+
+        for subj in range(N_subjects):
+            feature_vectors[subj] = np.concatenate(
+                [covs[subj, indices[state]][upper_tri_indices] for state in range(N_states)])
+
+        return feature_vectors
+
+
+    # Step 5 & 6: Compute similarity matrix and evaluate prediction accuracy
+    for i in range(1, 4):
+        for j in range(1, 4):
+            # Load covariance matrices
+            session1_covs = np.load(f'{plot_dir}/first_scan_covs_{i}.npy')
+            session2_covs = np.load(f'{plot_dir}/second_scan_covs_{j}.npy')
+
+            N_subjects = len(session1_covs)
+
+            # Load corresponding state-matching indices
+            with open(f"{plot_dir}/state_matching_indices_{i}_{j}.json", "r") as f:
+                indices = json.load(f)
+
+            # Generate feature vectors for both sessions using matched states
+            session1_features = create_feature_vectors(session1_covs, indices['row'])
+            session2_features = create_feature_vectors(session2_covs, indices['col'])
+
+            # Compute Between-Session Similarity Matrix using Pearson correlation
+            similarity_matrix = np.corrcoef(session1_features, session2_features)[:N_subjects, N_subjects:]
+
+            # Evaluate Subject Label Prediction Accuracy
+            correct_matches = np.argmax(similarity_matrix, axis=1) == np.arange(N_subjects)
+            prediction_accuracy = np.mean(correct_matches)
+
+            # Save results
+            np.save(f'{plot_dir}/between_session_similarity_{i}_{j}.npy', similarity_matrix)
+            with open(f"{plot_dir}/subject_label_prediction_accuracy_{i}_{j}.txt", "w") as f:
+                f.write(f"Subject Label Prediction Accuracy: {prediction_accuracy:.4f}\n")
+
+            print(f"Iteration ({i},{j}) - Subject Label Prediction Accuracy: {prediction_accuracy:.4f}")
