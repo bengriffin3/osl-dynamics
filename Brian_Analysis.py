@@ -1,7 +1,12 @@
 import os
 import json
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
+
+from osl_dynamics.config_api.wrappers import load_data
+from osl_dynamics.models import load
+
 
 from osl_dynamics.inference.metrics import twopair_riemannian_distance
 from osl_dynamics.inference.modes import hungarian_pair
@@ -54,3 +59,26 @@ if __name__ == '__main__':
             scan_metric.append(float(np.mean(np.diagonal(riem_reorder))))
     with open(f"{plot_dir}/scan_reproducibility.json", "w") as f:
         json.dump(scan_metric, f)
+
+    # Step 3: Dual estimation for each subject
+    # Scan 1
+    with open(f"{save_dir_1}/repeat_1/prepared_config.yaml", "r") as file:
+        config_1 = yaml.safe_load(file)
+    load_data_kwargs_1 = config_1['load_data']
+    data_1 = load_data(**load_data_kwargs_1)
+
+    for i in range(1,4):
+        model = load(f'{save_dir_1}/repeat_{i}/model/')
+        _, covs = model.dual_estimation(data_1)
+        np.save(f'{plot_dir}/first_scan_covs_{i}.npy',covs)
+
+    # Scan 2
+    with open(f"{save_dir_2}/repeat_1/prepared_config.yaml", "r") as file:
+        config_2 = yaml.safe_load(file)
+    load_data_kwargs_2 = config_2['load_data']
+    data_2 = load_data(**load_data_kwargs_2)
+
+    for i in range(1,4):
+        model = load(f'{save_dir_2}/repeat_{i}/model/')
+        _, covs = model.dual_estimation(data_2)
+        np.save(f'{plot_dir}/second_scan_covs_{i}.npy',covs)
