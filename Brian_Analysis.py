@@ -149,7 +149,7 @@ if __name__ == '__main__':
     '''
     sFC_1 = np.load(f'{plot_dir}/static_first_scan.npy')
     sFC_2 = np.load(f'{plot_dir}/static_second_scan.npy')
-    upper_tri_indices = np.triu_indices(50, k=0)  # k=0 includes the diagonal
+    upper_tri_indices = np.triu_indices(50, k=1)  # k=0 includes the diagonal
     sFC_1_flattened = sFC_1[:, upper_tri_indices[0], upper_tri_indices[1]]
     sFC_2_flattened = sFC_2[:, upper_tri_indices[0], upper_tri_indices[1]]
 
