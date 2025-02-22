@@ -124,7 +124,7 @@ if __name__ == '__main__':
         [1.0,1.0,-0.5,1.0,1.0,0.5],
         [1.0,1.0,-0.2,1.0,1.0,0.2]
     ]))
-    '''
+    
     with open(f"{save_dir_1}/repeat_1/prepared_config.yaml", "r") as file:
         config_1 = yaml.safe_load(file)
     load_data_kwargs_1 = config_1['load_data']
@@ -144,9 +144,11 @@ if __name__ == '__main__':
         sFC_2.append(np.corrcoef(ts,rowvar=False))
     sFC_1 = np.array(sFC_1)
     sFC_2 = np.array(sFC_2)
-    np.save(f'{plot_dir}/static_first_scan.npy',sFC_1)
-    np.save(f'{plot_dir}/static_second_scan.npy',sFC_2)
-
+    np.save(f"{plot_dir}/static_first_scan.npy",sFC_1)
+    np.save(f"{plot_dir}/static_second_scan.npy",sFC_2)
+    '''
+    sFC_1 = np.load(f'{plot_dir}/static_first_scan.npy')
+    sFC_2 = np.load(f'{plot_dir}/static_second_scan.npy')
     upper_tri_indices = np.triu_indices(50, k=0)  # k=0 includes the diagonal
     sFC_1_flattened = sFC_1[:, upper_tri_indices[0], upper_tri_indices[1]]
     sFC_2_flattened = sFC_2[:, upper_tri_indices[0], upper_tri_indices[1]]
@@ -160,6 +162,12 @@ if __name__ == '__main__':
     correct_matches = np.argmax(similarity_matrix, axis=1) == np.arange(N_subjects)
     prediction_accuracy = np.mean(correct_matches)
     print('sFC prediction accuracy:', prediction_accuracy)
+
+    # Compute Top-5 Accuracy
+    top5_predictions = np.argsort(similarity_matrix, axis=1)[:, -5:]
+    top5_correct_matches = [i in top5_predictions[i] for i in range(N_subjects)]
+    top5_accuracy = np.mean(top5_correct_matches)
+    print('sFC top 5 accuracy:',top5_accuracy)
 
     # Calculate static functional connectivity
     # Step 5 & 6: Compute similarity matrix and evaluate prediction accuracy
