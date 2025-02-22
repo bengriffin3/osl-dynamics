@@ -19,7 +19,7 @@ if __name__ == '__main__':
     split_half_metric = []
     for i in range(1,6):
         cov_1 = np.load(f'{save_dir_1}/split_{i}/partition_1/inf_params/covs.npy')
-        cov_2 = np.load(f'{save_dir_1}/split_{i}/partition_1/inf_params/covs.npy')
+        cov_2 = np.load(f'{save_dir_1}/split_{i}/partition_2/inf_params/covs.npy')
         riem = twopair_riemannian_distance(cov_1, cov_2)
         indice, riem_reorder = hungarian_pair(riem, distance=True)
         plot_mode_pairing(riem_reorder, indice, x_label='2nd half states', y_label='1st half states',
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     split_half_metric = []
     for i in range(1, 6):
         cov_1 = np.load(f'{save_dir_2}/split_{i}/partition_1/inf_params/covs.npy')
-        cov_2 = np.load(f'{save_dir_2}/split_{i}/partition_1/inf_params/covs.npy')
+        cov_2 = np.load(f'{save_dir_2}/split_{i}/partition_2/inf_params/covs.npy')
         riem = twopair_riemannian_distance(cov_1, cov_2)
         indice, riem_reorder = hungarian_pair(riem, distance=True)
         plot_mode_pairing(riem_reorder, indice, x_label='2nd half states', y_label='1st half states',
