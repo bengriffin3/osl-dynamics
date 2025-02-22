@@ -153,7 +153,7 @@ if __name__ == '__main__':
     sFC_1_flattened = sFC_1[:400, upper_tri_indices[0], upper_tri_indices[1]]
     sFC_2_flattened = sFC_2[:400, upper_tri_indices[0], upper_tri_indices[1]]
 
-    N_subjects = len(sFC_1)
+    N_subjects = len(sFC_1_flattened)
 
     # Compute Between-Session Similarity Matrix using Pearson correlation
     similarity_matrix = np.corrcoef(sFC_1_flattened, sFC_2_flattened)[:N_subjects, N_subjects:]
