@@ -130,11 +130,6 @@ if __name__ == '__main__':
     load_data_kwargs_1 = config_1['load_data']
     data_1 = load_data(**load_data_kwargs_1)
 
-    for i in range(1, 4):
-        model = load(f'{save_dir_1}/repeat_{i}/model/')
-        _, covs = model.dual_estimation(data_1)
-        np.save(f'{plot_dir}/first_scan_covs_{i}.npy', covs)
-
     # Scan 2
     with open(f"{save_dir_2}/repeat_1/prepared_config.yaml", "r") as file:
         config_2 = yaml.safe_load(file)
