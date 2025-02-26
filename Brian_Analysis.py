@@ -147,6 +147,7 @@ if __name__ == '__main__':
     np.save(f"{plot_dir}/static_first_scan.npy",sFC_1)
     np.save(f"{plot_dir}/static_second_scan.npy",sFC_2)
     '''
+    '''
     sFC_1 = np.load(f'{plot_dir}/static_first_scan.npy')
     sFC_2 = np.load(f'{plot_dir}/static_second_scan.npy')
     upper_tri_indices = np.triu_indices(50, k=1)  # k=0 includes the diagonal
@@ -200,3 +201,4 @@ if __name__ == '__main__':
                 f.write(f"Subject Label Prediction Accuracy: {prediction_accuracy:.4f}\n")
 
             print(f"Iteration ({i},{j}) - Subject Label Prediction Accuracy: {prediction_accuracy:.4f}")
+    '''
