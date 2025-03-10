@@ -1048,7 +1048,7 @@ class BatchAnalysis:
             sum_of_degrees = np.array(sum_of_degrees)
             np.save(f'{save_dir}r1_approx_FC.npy', r1_approxs)
             np.save(f'{plot_dir}/corr_sum_of_degree.npy',sum_of_degrees)
-
+            '''
             ic2surface(ica_spatial_maps = f'{self.config_root["spatial_map"]}/melodic_IC.dscalar.nii',
                        ic_values=sum_of_degrees,
                        output_file=f'{plot_dir}/corr_sum_of_degree_surface_map.dscalar.nii')
@@ -1066,7 +1066,7 @@ class BatchAnalysis:
                    gui=False,
                    image_name=f'{plot_dir}/brain_map/fc_r1_approx',
                    input_is_cifti=True)
-
+            '''
 
             # Calculate the Riemannian distance of covariance matrices
             riem = twopair_riemannian_distance(covs,covs)
