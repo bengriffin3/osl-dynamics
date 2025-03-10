@@ -951,7 +951,7 @@ class BatchAnalysis:
                      plot_kwargs={'showfliers': True},
                      x_label="State",
                      y_label="Fractional Occupancy",
-                     filename=f'{plot_dir}/fo.pdf'
+                     filename=f'{plot_dir}/fo.svg'
                      )
 
             # Mean lifetime
@@ -1011,7 +1011,7 @@ class BatchAnalysis:
                      plot_kwargs={'showfliers': True},
                      x_label="Mode",
                      y_label="Std alpha",
-                     filename=f'{plot_dir}/std_norm_alpha.pdf'
+                     filename=f'{plot_dir}/std_norm_alpha.svg'
                      )
 
         if covs is not None:
@@ -1078,7 +1078,7 @@ class BatchAnalysis:
             riem_reordered = riem_reordered[:,index]
             indices = {'row':(index+1).tolist(),'col':(index+1).tolist()}
             plot_mode_pairing(riem,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem.pdf')
-            plot_mode_pairing(riem_reordered,indices,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem_reordered.pdf')
+            plot_mode_pairing(riem_reordered,indices,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem_reordered.svg')
 
     def mode_contribution_analysis(self,model='dynemo',n_state=16,mode='bcv_1'):
         save_dir = (f'{self.config_path}/{model}_state_{n_state}/{mode}/')
