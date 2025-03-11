@@ -259,9 +259,9 @@ class MDyn_MVN(MVN):
         Parameters
         ----------
         state_time_courses : np.ndarray
-            Should contain two time courses: one for the mean and standard
-            deviations and another for functional connectiivty. Shape is
-            (2, n_samples, n_modes).
+            Should contain THREE time courses: one for the mean, one for
+            the standard deviations, and another for functional connectiivty. 
+            Shape is (3, n_samples, n_modes).
 
         Returns
         -------
@@ -283,11 +283,13 @@ class MDyn_MVN(MVN):
             # Extract the different time courses
             alpha = time_courses[:, 0]
             beta = time_courses[:, 1]
+            gamma = time_courses[:, 2]
 
             # Mean, standard deviation, corr for this combination of time courses
             mu = np.sum(self.means * alpha[:, np.newaxis], axis=0)
-            G = np.diag(np.sum(self.stds * alpha[:, np.newaxis], axis=0))
+            # G = np.diag(np.sum(self.stds * alpha[:, np.newaxis], axis=0))
             F = np.sum(self.corrs * beta[:, np.newaxis, np.newaxis], axis=0)
+            G = np.diag(np.sum(self.stds * gamma[:, np.newaxis], axis=0))
 
             # Calculate covariance matrix from the standard deviation and corr
             sigma = G @ F @ G
@@ -308,6 +310,139 @@ class MDyn_MVN(MVN):
         data += np.random.normal(scale=self.observation_error, size=data.shape)
 
         return data.astype(np.float32)
+    
+    def simulate_data_means(self, state_time_courses):
+        """Simulates data using means only.
+
+        Parameters
+        ----------
+        state_time_courses : np.ndarray
+            Should contain ONE time courses: one for the mean. 
+            Shape is (1, n_samples, n_modes).
+
+        Returns
+        -------
+        data : np.ndarray
+            Simulated data. Shape is (n_samples, n_channels).
+        """
+
+        # Number of samples to simulate
+        n_samples = state_time_courses.shape[0]
+
+        # Initialise array to hold data
+        data = np.zeros([n_samples, self.n_channels])
+
+        # Loop over each time point
+        for t in range(n_samples):
+            # Get the mode weights (alpha) for time point t
+            weights = state_time_courses[t, :]
+            
+            # Calculate the weighted mean for this time point
+            mu = np.sum(self.means * weights[:, np.newaxis], axis=0)
+            
+            # Use an identity covariance matrix of the proper shape (n_channels x n_channels)
+            sigma = np.eye(self.n_channels)
+            
+            # Generate data at this time point from a multivariate normal distribution
+            data[t] = np.random.multivariate_normal(mu, sigma)
+
+
+        # Add an error to the data at all time points
+        data += np.random.normal(scale=self.observation_error, size=data.shape)
+
+        return data.astype(np.float32)
+    
+    def simulate_data_correlations(self, state_time_courses):
+        """Simulates data using correlations only.
+
+        Parameters
+        ----------
+        state_time_courses : np.ndarray
+            Should contain ONE time courses: one for the correlation. 
+            Shape is (1, n_samples, n_modes).
+
+        Returns
+        -------
+        data : np.ndarray
+            Simulated data. Shape is (n_samples, n_channels).
+        """
+        
+        # Number of samples to simulate
+        n_samples = state_time_courses.shape[0]
+
+        # Initialise array to hold data
+        data = np.zeros([n_samples, self.n_channels])
+
+        # Loop over each time point
+        for t in range(n_samples):
+            # Get the weights for this time point
+            weights = state_time_courses[t, :]  # shape: (n_modes,)
+            
+            # Compute the weighted sum of the correlation matrices
+            F = np.sum(self.corrs * weights[:, np.newaxis, np.newaxis], axis=0)
+            
+            # Use an identity matrix in place of standard deviations
+            G = np.eye(self.n_channels)
+            
+            # Calculate covariance matrix using only correlations:
+            # Since G is the identity, sigma = I @ F @ I = F.
+            sigma = G @ F @ G
+            
+            # Set mean to zero vector
+            mu = np.zeros(self.n_channels)
+            
+            # Generate data at this time point from a multivariate normal distribution
+            data[t] = np.random.multivariate_normal(mu, sigma)
+
+        # Add an error to the data at all time points
+        data += np.random.normal(scale=self.observation_error, size=data.shape)
+
+        return data.astype(np.float32)
+    
+    def simulate_data_std(self, state_time_courses):
+        """Simulates data using standard deviations only.
+
+        Parameters
+        ----------
+        state_time_courses : np.ndarray
+            Should contain ONE time course for the standard deviations.
+            Shape is (1, n_samples, n_modes).
+
+        Returns
+        -------
+        data : np.ndarray
+            Simulated data. Shape is (n_samples, n_channels).
+        """
+        
+        # Number of samples to simulate
+        n_samples = state_time_courses.shape[0]
+        
+        # Initialise array to hold data
+        data = np.zeros([n_samples, self.n_channels])
+        
+        # Loop over each time point
+        for t in range(n_samples):
+            # Get the weights for this time point
+            weights = state_time_courses[t, :]  # shape: (n_modes,)
+            
+            # Compute the weighted standard deviations for each channel.
+            # self.stds is assumed to be of shape (n_modes, n_channels)
+            std_vector = np.sum(self.stds * weights[:, np.newaxis], axis=0)
+            
+            # Create a diagonal covariance matrix where the variances are std_vector squared
+            sigma = np.diag(std_vector ** 2)
+            
+            # Use a zero vector for the mean (since we ignore means)
+            mu = np.zeros(self.n_channels)
+            
+            # Generate data at this time point from a multivariate normal distribution
+            data[t] = np.random.multivariate_normal(mu, sigma)
+        
+        # Add observation error to the data at all time points
+        data += np.random.normal(scale=self.observation_error, size=data.shape)
+        
+        return data.astype(np.float32)
+
 
     def get_instantaneous_covariances(self, state_time_courses):
         """Get the ground truth covariance at each time point.

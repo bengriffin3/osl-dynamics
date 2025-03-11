@@ -392,17 +392,32 @@ class MDyn_HMM_MVN(Simulation):
             n_states=self.n_states,
         )
 
+        self.gamma_hmm = HMM(
+            trans_prob=trans_prob,
+            stay_prob=stay_prob,
+            n_states=self.n_states,
+        )
+
         # Initialise base class
         super().__init__(n_samples=n_samples)
 
         # Simulate state time courses
         alpha = self.alpha_hmm.generate_states(self.n_samples)
         beta = self.beta_hmm.generate_states(self.n_samples)
+        gamma = self.gamma_hmm.generate_states(self.n_samples)
 
-        self.state_time_course = np.array([alpha, beta])
+        # self.state_time_course = np.array([alpha, beta])
+        self.state_time_course = np.array([alpha, beta, gamma])
+
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
 
         # Simulate data
         self.time_series = self.obs_mod.simulate_data(self.state_time_course)
+        self.time_series_alpha = self.obs_mod.simulate_data_means(alpha)
+        self.time_series_beta = self.obs_mod.simulate_data_correlations(beta)
+        self.time_series_gamma = self.obs_mod.simulate_data_std(gamma)
 
     @property
     def n_modes(self):
