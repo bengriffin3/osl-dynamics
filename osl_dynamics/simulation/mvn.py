@@ -292,6 +292,11 @@ class MDyn_MVN(MVN):
         # Initialise array to hold data
         data = np.zeros([n_samples, self.n_channels])
 
+        # 'state_time_courses' is a n_timepoints x n_states x 3 (for the no. different time series)
+        # When we call 'np.unique(state_time_courses, axis=0)', you’re asking Python to look along the first axis (the time axis) and return only the unique 5×3 matrices. In other words, even though you have 25,600 time points, many of those 5×3 matrices might be identical.
+        # This is because we have binaried the 'state_time_courses', so basically we expect quite a few time points to have the same states active for all three types of dynamics (randomly)
+        # Therefore, we can group these time points together and process them at the same time, because the same states are active!
+        # So, we extract the 5x3 array for that group of time points, then assign those points with some time series data!
         for time_courses in np.unique(state_time_courses, axis=0):
             # Extract the different time courses
             alpha = time_courses[:, 0]
