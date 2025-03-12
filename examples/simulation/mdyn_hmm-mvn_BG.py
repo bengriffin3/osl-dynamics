@@ -161,7 +161,7 @@ sim = MDyn_HMM_MVN(
     stay_prob=0.9,
     means="random",
     covariances="random",
-    observation_error=noise_error
+    observation_error=noise_level
 )
 
 # Retrieve simulated ground truth state time courses
