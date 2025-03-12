@@ -1,323 +1,260 @@
-"""Example script for running inference on simulated MDyn_HMM_MVN data.
-
-- Multi-dynamic version for dynemo_hmm-mvn.py
-- Should achieve a dice of ~0.99 for alpha and ~0.99 for beta.
-"""
-
-print("Setting up")
+print("Importing packages")
 import os
+import random
 import numpy as np
+import pickle
 from osl_dynamics import data, simulation
-from osl_dynamics.inference import metrics, modes, tf_ops
-# from osl_dynamics.models.mdynemo import Config, Model
+from osl_dynamics.inference import metrics, modes
 from osl_dynamics.models.hmm import Config, Model
+from osl_dynamics.simulation import HMM_MVN, MDyn_HMM_MVN
+from osl_dynamics.data import Data
 from osl_dynamics.utils import plotting
 
-os.makedirs("figures_BG", exist_ok=True)
+def build_model_configs(n_states, n_channels, sequence_length=100, batch_size=8):
+    """Builds and returns a dictionary of model configurations.
+    
+    Comments indicate the options not used.
+    """
+    #%% Define model configurations
+    config_means = Config(
+        n_states=n_states,
+        n_channels=n_channels,
+        sequence_length=sequence_length,
+        learn_means=True,
+        learn_covariances=False,
+        diagonal_covariances=False,
+        learn_trans_prob=True,
+        batch_size=batch_size,
+        learning_rate=0.01,
+        n_epochs=20,
+    )
 
-# GPU settings
-tf_ops.gpu_growth()
+    # config_corrs = Config(
+    #     n_states=n_states,
+    #     n_channels=n_channels,
+    #     sequence_length=sequence_length,
+    #     learn_means=False,
+    #     learn_covariances=True,
+    #     # diagonal_covariances=False,
+    #     learn_trans_prob=True,
+    #     batch_size=16,
+    #     learning_rate=0.01,
+    #     n_epochs=20,
+    # )
 
-config = Config(
-    n_states=5,
-    n_channels=11,
-    sequence_length=400,
-    learn_means=True,
-    learn_covariances=True,
-    learn_trans_prob=True,
-    # initial_trans_prob=initial_trans_prob,
-    batch_size=256,
-    learning_rate=0.001,
-    n_epochs=30,
-)
+    config_stds = Config(
+        n_states=n_states,
+        n_channels=n_channels,
+        sequence_length=sequence_length,
+        learn_means=False,
+        learn_covariances=True,
+        diagonal_covariances=True,
+        learn_trans_prob=True,
+        batch_size=batch_size,
+        learning_rate=0.01,
+        n_epochs=20,
+    )
 
-# Config for means only
-config_means = Config(
-    n_states=5,
-    n_channels=11,
-    sequence_length=400,
-    learn_means=True,
-    learn_covariances=False,
-    learn_trans_prob=True,
-    # initial_trans_prob=initial_trans_prob,
-    batch_size=256,
-    learning_rate=0.001,
-    n_epochs=30,
-)
+    # It currently isn't possible to learn hmm covariances without variances
+    # # 1. Means & Corrs
+    # config_means_corrs = Config(
+    #     n_states=n_states,
+    #     n_channels=n_channels,
+    #     sequence_length=sequence_length,
+    #     learn_means=True,
+    #     learn_covariances=True,  # learn full covariance structure (i.e. correlations)
+    #     diagonal_covariances=False,  # we don't restrict to diagonal => using full covariances
+    #     learn_trans_prob=True,
+    #     batch_size=batch_size,
+    #     learning_rate=0.01,
+    #     n_epochs=20,
+    # )
 
-# Config for covariances only
-config_correlations = Config(
-    n_states=5,
-    n_channels=11,
-    sequence_length=400,
-    learn_means=False,
-    learn_covariances=True,
-    learn_trans_prob=True,
-    # initial_trans_prob=initial_trans_prob,
-    batch_size=256,
-    learning_rate=0.001,
-    n_epochs=30,
-)
+    # 2. Means & Stds
+    config_means_stds = Config(
+        n_states=n_states,
+        n_channels=n_channels,
+        sequence_length=sequence_length,
+        learn_means=True,
+        learn_covariances=True,  # we want to learn covariances, but restrict to diagonal for stds
+        diagonal_covariances=True,
+        learn_trans_prob=True,
+        batch_size=batch_size,
+        learning_rate=0.01,
+        n_epochs=20,
+    )
 
-# # Settings
-# config = Config(
-#     n_modes=5,
-#     n_channels=20,
-#     sequence_length=100,
-#     inference_n_units=128,
-#     inference_normalization="layer",
-#     model_n_units=128,
-#     model_normalization="layer",
-#     theta_normalization="layer",
-#     learn_means=True,
-#     learn_stds=True,
-#     learn_corrs=True,
-#     do_kl_annealing=True,
-#     kl_annealing_curve="tanh",
-#     kl_annealing_sharpness=10,
-#     n_kl_annealing_epochs=100,
-#     lr_decay=0.1,
-#     batch_size=16,
-#     learning_rate=0.01,
-#     n_epochs=200,
-# )
+    # 3. Stds & Corrs
+    config_stds_corrs = Config(
+        n_states=n_states,
+        n_channels=n_channels,
+        sequence_length=sequence_length,
+        learn_means=False,
+        learn_covariances=True,
+        diagonal_covariances=False,  # we want to capture both correlations and then later combine with stds, so full covariances
+        learn_trans_prob=True,
+        batch_size=batch_size,
+        learning_rate=0.01,
+        n_epochs=20,
+    )
 
-# Simulate data
+    # 3. All
+    config_all = Config(
+        n_states=n_states,
+        n_channels=n_channels,
+        sequence_length=sequence_length,
+        learn_means=True,
+        learn_covariances=True,
+        diagonal_covariances=False,  # we want to capture both correlations and then later combine with stds, so full covariances
+        learn_trans_prob=True,
+        batch_size=batch_size,
+        learning_rate=0.01,
+        n_epochs=20,
+    )
+
+    # Dictionary mapping model names to their configs
+    model_configs = {
+        'means': config_means,
+        # 'corrs': config_corrs,         # not used
+        'stds': config_stds,
+        # 'means_corrs': config_means_corrs,  # not used
+        'means&stds': config_means_stds,
+        'stds&corrs': config_stds_corrs,
+        'all': config_all,
+    }
+
+    return model_configs
+
+
+# Set random seed for reproducibility
+random.seed(63)
+
+# Create directory for results
+results_dir = "results"
+os.makedirs(results_dir, exist_ok=True)
+
+#%% Simulate data
+n_states = 5
+n_channels = 11
+n_samples = 25600
+
 print("Simulating data")
-sim = simulation.MDyn_HMM_MVN(
-    n_samples=25600,
-    # n_samples=2560,
-    n_modes=config.n_states,
-    n_channels=config.n_channels,
+sim = MDyn_HMM_MVN(
+    n_samples=n_samples,
+    n_states=n_states,
+    n_modes=n_states,
+    n_channels=n_channels,
     trans_prob="sequence",
     stay_prob=0.9,
     means="random",
     covariances="random",
 )
-sim.standardize()
 
-# Simulated mode mixing factors
-# ^^^^ that was for dynemo. State-time courses here.
-sim_alpha, sim_beta, sim_gamma = sim.mode_time_course
+# Retrieve simulated ground truth state time courses
+# sim_alpha_stc, sim_beta_stc, sim_gamma_stc = sim.mode_time_course
+sim_alpha_stc = sim.mode_time_course
 
-# Training data 
-training_data_alpha = data.Data(sim.time_series_alpha)
-training_data_beta = data.Data(sim.time_series_beta)
-# training_data_gamma = data.Data(sim.time_series_gamma)
-
-model_alpha = Model(config_means)
-model_beta = Model(config_correlations)
-
-model_alpha.set_regularizers(training_data_alpha)
-model_beta.set_regularizers(training_data_beta)
-
-history_alpha = model_alpha.fit(training_data_alpha)
-history_beta = model_beta.fit(training_data_beta)
-
-# Inferred state probabilities
-inf_alp_alpha = model_alpha.get_alpha(training_data_alpha)
-inf_alp_beta = model_alpha.get_alpha(training_data_beta)
-
-inf_alp_alpha = modes.argmax_time_courses(inf_alp_alpha)
-inf_alp_beta = modes.argmax_time_courses(inf_alp_beta)
+# Retrieve simulated time series for each variant
+sim_all_time_series         = sim.time_series
+sim_means_time_series       = sim.time_series_means
+sim_corrs_time_series       = sim.time_series_corrs
+sim_stds_time_series        = sim.time_series_stds
+sim_means_corrs_time_series = sim.time_series_means_corrs
+sim_means_stds_time_series  = sim.time_series_means_stds
+sim_stds_corrs_time_series  = sim.time_series_stds_corrs
 
 
-plotting.plot_alpha(
-    sim_alpha,
-    n_samples=2000,
-    title="Ground truth " + r"$\alpha$",
-    y_labels=r"$\alpha_{jt}$",
-    filename="figures_BG/sim_alpha.png",
-)
-
-plotting.plot_alpha(
-    inf_alp_alpha,
-    n_samples=2000,
-    title="Inferred " + r"$\alpha$",
-    y_labels=r"$\alpha_{jt}$",
-    filename="figures_BG/inf_alpha.png",
-)
+# Create Data objects for training for each variant
+data_all          = data.Data(sim_all_time_series)  
+data_means        = data.Data(sim_means_time_series)
+data_corrs        = data.Data(sim_corrs_time_series)
+data_stds         = data.Data(sim_stds_time_series)
+data_means_corrs  = data.Data(sim_means_corrs_time_series)
+data_means_stds   = data.Data(sim_means_stds_time_series)
+data_stds_corrs   = data.Data(sim_stds_corrs_time_series)
 
 
-plotting.plot_alpha(
-    sim_beta,
-    n_samples=2000,
-    title="Ground truth " + r"$\beta$",
-    y_labels=r"$\beta_{jt}$",
-    filename="figures_BG/sim_beta.png",
-)
+means = sim.means
+corrs = sim.corrs
+stds = sim.stds
 
-plotting.plot_alpha(
-    inf_alp_beta,
-    n_samples=2000,
-    title="Inferred " + r"$\alpha$",
-    y_labels=r"$\alpha_{jt}$",
-    filename="figures_BG/inf_beta.png",
-)
+# Build model configurations dictionary
+model_configs = build_model_configs(n_states, n_channels)
 
+# Dictionary mapping dataset names to Data objects
+data_dict = {
+    'all' : data_all,
+    'means': data_means,
+    'corrs': data_corrs,
+    'stds': data_stds,
+    'means&corrs': data_means_corrs,
+    'means&stds': data_means_stds,
+    'stds&corrs': data_stds_corrs,
+}
 
-# # Combined time series analysis
-# training_data = data.Data(sim.time_series)
+# Dictionary mapping dataset names to ground truth state time courses
+sim_stcs = {
+    'all' : sim_alpha_stc,
+    'means': sim_alpha_stc,
+    'corrs': sim_alpha_stc,
+    'stds': sim_alpha_stc,
+    'means&corrs': sim_alpha_stc,
+    'means&stds': sim_alpha_stc,
+    'stds&corrs': sim_alpha_stc,
+}
 
-# # training_data.prepare(
-# #     {"pca": {"n_pca_components": config.n_channels}, "standardize": {}}
-# # )
-# # config.pca_components = training_data.pca_components
+#%% Run models on all datasets and store results
+results = {}  # Structure: results[model_name][data_name] = {free_energy, dice, inf_stc, sim_stc}
 
-# # Build model
-# model = Model(config)
-# model.summary()
+# Loop over model types
+for model_name, config in model_configs.items():
+    results[model_name] = {}
+    # Loop over dataset types
+    for data_name, data in data_dict.items():
+        print(f"\nRunning model '{model_name}' on dataset '{data_name}'")
+        # Create a new model instance for this combination
+        model = Model(config)
+        
+        # Standardize data (if not already done)
+        data.prepare({"standardize": {}})
+        
+        # Initialization (adjust n_init/n_epochs as needed)
+        init_history = model.random_state_time_course_initialization(data, n_init=5, n_epochs=1)
+        
+        # Full training
+        history = model.fit(data)
+        
+        # Calculate free energy
+        free_energy = model.free_energy(data)
+        
+        # Get inferred state probabilities and compute Viterbi path
+        alp = model.get_alpha(data)
+        # means, covs = model.get_means_covariances()
+        inf_means, inf_stds, inf_corrs = model.get_means_stds_corrs()
+        inf_stc = modes.argmax_time_courses(alp)
+        
+        # Re-order the inferred state time course to match the ground truth
+        inf_stc, sim_stc = modes.match_modes(inf_stc, sim_stcs[data_name])
+        
+        # Calculate dice coefficient comparing inferred vs. simulated state time courses
+        dice = metrics.dice_coefficient(inf_stc, sim_stc)
+        
+        # Save the results for this run
+        results[model_name][data_name] = {
+            'free_energy': free_energy,
+            'dice': dice,
+            'means': inf_means,
+            'corrs': inf_corrs,
+            'stds': inf_stds,
+            'inf_stc': inf_stc,
+            'sim_stc': sim_stc
+        }
+        
+        print(f"Free energy: {free_energy}")
+        print(f"Dice coefficient: {dice}")
 
-# # Set regularisers
-# model.set_regularizers(training_data)
-
-# print("Training model")
-# history = model.fit(training_data)
-
-# # Free energy = Log Likelihood - KL Divergence
-# free_energy = model.free_energy(training_data)
-# print(f"Free energy: {free_energy}")
-
-# # Inferred state probabilities
-# inf_alp = model.get_alpha(training_data)
-
-# # Observation model parameters
-# means, covs = model.get_means_covariances()
-
-# #%% Calculate summary statistics
-
-# # Viterbi path
-# inf_stc = modes.argmax_time_courses(inf_alp)
-
-# # Calculate summary statistics
-# fo = modes.fractional_occupancies(inf_stc)
-# lt = modes.mean_lifetimes(inf_stc)
-# intv = modes.mean_intervals(inf_stc)
-# sr = modes.switching_rates(inf_stc)
-
-
-
-# # Plots
-# plotting.plot_time_series(
-#     sim.time_series,
-#     n_samples=2000,
-#     filename="figures_BG/time_series.png")
-
-# plotting.plot_alpha(
-#     sim_alpha,
-#     n_samples=2000,
-#     title="Ground truth " + r"$\alpha$",
-#     y_labels=r"$\alpha_{jt}$",
-#     filename="figures_BG/sim_alpha.png",
-# )
-
-# plotting.plot_alpha(
-#     sim_beta,
-#     n_samples=2000,
-#     title="Ground truth " + r"$\beta$",
-#     y_labels=r"$\beta_{jt}$",
-#     filename="figures_BG/sim_beta.png",
-# )
-
-# plotting.plot_alpha(
-#     sim_beta,
-#     n_samples=2000,
-#     title="Ground truth " + r"$\beta$",
-#     y_labels=r"$\beta_{jt}$",
-#     filename="figures_BG/sim_gamma.png",
-# )
-
-# # # Inferred mode mixing factors
-# # inf_alpha, inf_beta = model.get_mode_time_courses(training_data)
-
-# # inf_alpha = modes.argmax_time_courses(inf_alpha)
-# # inf_beta = modes.argmax_time_courses(inf_beta)
-
-# # # Simulated mode mixing factors
-# # sim_alpha, sim_beta = sim.mode_time_course
-
-# # # Inferred means, stds, corrs
-# # inf_means, inf_stds, inf_corrs = model.get_means_stds_corrs()
-# # sim_means = sim.means
-# # sim_stds = sim.stds
-# # sim_corrs = sim.corrs
-
-# # # Match the inferred and simulated mixing factors
-# # _, order_alpha = modes.match_modes(sim_alpha, inf_alpha, return_order=True)
-# # _, order_beta = modes.match_modes(sim_beta, inf_beta, return_order=True)
-
-# # inf_alpha = inf_alpha[:, order_alpha]
-# # inf_beta = inf_beta[:, order_beta]
-
-# # inf_means = inf_means[order_alpha]
-# # inf_stds = np.array([np.diag(std) for std in inf_stds[order_alpha]])
-# # inf_corrs = inf_corrs[order_beta]
-
-# # # Dice coefficients
-# # dice_alpha = metrics.dice_coefficient(sim_alpha, inf_alpha)
-# # dice_beta = metrics.dice_coefficient(sim_beta, inf_beta)
-
-# # print("Dice coefficient for power:", dice_alpha)
-# # print("Dice coefficient for FC:", dice_beta)
-
-# # # Fractional occupancies
-# # fo_sim_alpha = modes.fractional_occupancies(sim_alpha)
-# # fo_sim_beta = modes.fractional_occupancies(sim_beta)
-
-# # fo_inf_alpha = modes.fractional_occupancies(inf_alpha)
-# # fo_inf_beta = modes.fractional_occupancies(inf_beta)
-
-# # print("Fractional occupancies mean (Simulation):", fo_sim_alpha)
-# # print("Fractional occupancies mean (DyNeMo):", fo_inf_alpha)
-
-# # print("Fractional occupancies FC (Simulation):", fo_sim_beta)
-# # print("Fractional occupancies FC (DyNeMo):", fo_inf_beta)
-
-# # # Plots
-# # plotting.plot_alpha(
-# #     sim_alpha,
-# #     n_samples=2000,
-# #     title="Ground truth " + r"$\alpha$",
-# #     y_labels=r"$\alpha_{jt}$",
-# #     filename="figures/sim_alpha.png",
-# # )
-# # plotting.plot_alpha(
-# #     inf_alpha,
-# #     n_samples=2000,
-# #     title="Inferred " + r"$\alpha$",
-# #     y_labels=r"$\alpha_{jt}$",
-# #     filename="figures/inf_alpha.png",
-# # )
-# # plotting.plot_alpha(
-# #     sim_beta,
-# #     n_samples=2000,
-# #     title="Ground truth " + r"$\beta$",
-# #     y_labels=r"$\beta_{jt}$",
-# #     filename="figures/sim_beta.png",
-# # )
-# # plotting.plot_alpha(
-# #     inf_beta,
-# #     n_samples=2000,
-# #     title="Inferred " + r"$\beta$",
-# #     y_labels=r"$\beta_{jt}$",
-# #     filename="figures/inf_beta.png",
-# # )
-# # plotting.plot_matrices(
-# #     sim_means, main_title="Ground Truth", filename="figures/sim_means.png"
-# # )
-# # plotting.plot_matrices(
-# #     inf_means, main_title="Inferred", filename="figures/inf_means.png"
-# # )
-
-# # plotting.plot_matrices(
-# #     sim_stds, main_title="Ground Truth", filename="figures/sim_stds.png"
-# # )
-# # plotting.plot_matrices(inf_stds, main_title="Inferred", filename="figures/inf_stds.png")
-# # plotting.plot_matrices(
-# #     sim_corrs, main_title="Ground Truth", filename="figures/sim_corrs.png"
-# # )
-# # plotting.plot_matrices(
-# #     inf_corrs, main_title="Inferred", filename="figures/inf_corrs.png"
-# # )
-
-# # training_data.delete_dir()
+# Print summary of all runs
+print("\nSummary of all runs:")
+for m_name, runs in results.items():
+    for d_name, res in runs.items():
+        print(f"Model '{m_name}' on dataset '{d_name}': Free energy = {res['free_energy']}, Dice = {res['dice']}")

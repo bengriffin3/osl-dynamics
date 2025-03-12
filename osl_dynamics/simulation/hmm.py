@@ -363,6 +363,7 @@ class MDyn_HMM_MVN(Simulation):
         stay_prob=None,
         observation_error=0.0,
     ):
+        self.n_states = n_states
         if n_states is None:
             n_states = n_modes
 
@@ -376,23 +377,7 @@ class MDyn_HMM_MVN(Simulation):
             observation_error=observation_error,
         )
 
-        self.n_states = self.obs_mod.n_modes
-        self.n_channels = self.obs_mod.n_channels
-
-        # HMM objects for sampling state time courses
-        # N.b. we use a different random seed to the observation model
         self.alpha_hmm = HMM(
-            trans_prob=trans_prob,
-            stay_prob=stay_prob,
-            n_states=self.n_states,
-        )
-        self.beta_hmm = HMM(
-            trans_prob=trans_prob,
-            stay_prob=stay_prob,
-            n_states=self.n_states,
-        )
-
-        self.gamma_hmm = HMM(
             trans_prob=trans_prob,
             stay_prob=stay_prob,
             n_states=self.n_states,
@@ -402,22 +387,20 @@ class MDyn_HMM_MVN(Simulation):
         super().__init__(n_samples=n_samples)
 
         # Simulate state time courses
-        alpha = self.alpha_hmm.generate_states(self.n_samples)
-        beta = self.beta_hmm.generate_states(self.n_samples)
-        gamma = self.gamma_hmm.generate_states(self.n_samples)
+        alpha_stc = self.alpha_hmm.generate_states(self.n_samples)
 
-        # self.state_time_course = np.array([alpha, beta])
-        self.state_time_course = np.array([alpha, beta, gamma])
-
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
+        self.state_time_course = np.array([alpha_stc]) # beta
+        # self.state_time_course = np.array([means_stc, corrs_stc, stds_stc, means_corrs_stc, means_stds_stc, stds_corrs_stc, all_stc])
 
         # Simulate data
-        self.time_series = self.obs_mod.simulate_data(self.state_time_course)
-        self.time_series_alpha = self.obs_mod.simulate_data_means(alpha)
-        self.time_series_beta = self.obs_mod.simulate_data_correlations(beta)
-        self.time_series_gamma = self.obs_mod.simulate_data_std(gamma)
+        self.time_series = self.obs_mod.simulate_data(self.state_time_course, "all")
+        self.time_series_means = self.obs_mod.simulate_data(self.state_time_course, "means")
+        self.time_series_corrs = self.obs_mod.simulate_data(self.state_time_course, "corrs")
+        self.time_series_stds = self.obs_mod.simulate_data(self.state_time_course, "stds")
+        self.time_series_means_corrs = self.obs_mod.simulate_data(self.state_time_course, "means&corrs")
+        self.time_series_means_stds = self.obs_mod.simulate_data(self.state_time_course, "means&stds")
+        self.time_series_stds_corrs = self.obs_mod.simulate_data(self.state_time_course, "stds&corrs")
+
 
     @property
     def n_modes(self):
