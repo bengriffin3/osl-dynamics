@@ -32,3 +32,5 @@ MANIFEST
 
 # Per-project virtualenvs
 .venv*/
+
+examples/simulation/results_hmm_variants

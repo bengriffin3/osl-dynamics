@@ -3,12 +3,25 @@ import os
 import random
 import numpy as np
 import pickle
+import argparse
 from osl_dynamics import data, simulation
 from osl_dynamics.inference import metrics, modes
 from osl_dynamics.models.hmm import Config, Model
 from osl_dynamics.simulation import HMM_MVN, MDyn_HMM_MVN
 from osl_dynamics.data import Data
 from osl_dynamics.utils import plotting
+
+#%% Parse command line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("noise_level", type=float, help = 'How much to scale the noise?')
+parser.add_argument("repetition", type=int, help='Which repetition to run?')
+# parser.add_argument("trans_prob_diag", type=int, help = 'Prior on TPM') 
+# parser.add_argument("n_ICs", type=int, help = 'No. ICs of parcellation', choices = [25, 50])
+# parser.add_argument("model_mean", type=int, help = 'Model mean for HMM states?', choices = [0, 1])
+
+args = parser.parse_args()
+noise_level = round(args.noise_level, 2)
+repetition = args.repetition
 
 def build_model_configs(n_states, n_channels, sequence_length=100, batch_size=8):
     """Builds and returns a dictionary of model configurations.
@@ -127,7 +140,7 @@ def build_model_configs(n_states, n_channels, sequence_length=100, batch_size=8)
 
 
 # Set random seed for reproducibility
-random.seed(63)
+random.seed(repetition)
 
 # Create directory for results
 results_dir = "/gpfs3/well/win-fmrib-analysis/users/psz102/git_repos/osl-dynamics/examples/simulation/results_hmm_variants/"
@@ -148,7 +161,7 @@ sim = MDyn_HMM_MVN(
     stay_prob=0.9,
     means="random",
     covariances="random",
-    # observation_error=
+    observation_error=noise_error
 )
 
 # Retrieve simulated ground truth state time courses
@@ -255,7 +268,7 @@ for model_name, config in model_configs.items():
         print(f"Dice coefficient: {dice}")
 
         # Save individual run results to a file
-        combination_file = os.path.join(results_dir, f"results_{model_name}_{data_name}.pkl")
+        combination_file = os.path.join(results_dir, f"results_{model_name}_{data_name}_rep_{repetition}.pkl")
         with open(combination_file, "wb") as f:
             pickle.dump(results[model_name][data_name], f)
         print(f"Saved results for model '{model_name}' on dataset '{data_name}' to {combination_file}")
@@ -268,7 +281,7 @@ for m_name, runs in results.items():
 
 
 # Save the results object to a file in the results directory
-results_file = os.path.join(results_dir, "results_all.pkl")
+results_file = os.path.join(results_dir, f"results_all_rep_{repetition}.pkl")
 with open(results_file, "wb") as f:
     pickle.dump(results, f)
     
