@@ -130,7 +130,7 @@ def build_model_configs(n_states, n_channels, sequence_length=100, batch_size=8)
 random.seed(63)
 
 # Create directory for results
-results_dir = "results"
+results_dir = "/gpfs3/well/win-fmrib-analysis/users/psz102/git_repos/osl-dynamics/examples/simulation/results_hmm_variants/"
 os.makedirs(results_dir, exist_ok=True)
 
 #%% Simulate data
@@ -148,11 +148,12 @@ sim = MDyn_HMM_MVN(
     stay_prob=0.9,
     means="random",
     covariances="random",
+    # observation_error=
 )
 
 # Retrieve simulated ground truth state time courses
-# sim_alpha_stc, sim_beta_stc, sim_gamma_stc = sim.mode_time_course
-sim_alpha_stc = sim.mode_time_course
+sim_alpha_stc, sim_beta_stc, sim_gamma_stc = sim.mode_time_course
+# sim_alpha_stc = sim.mode_time_course
 
 # Retrieve simulated time series for each variant
 sim_all_time_series         = sim.time_series
@@ -229,8 +230,8 @@ for model_name, config in model_configs.items():
         
         # Get inferred state probabilities and compute Viterbi path
         alp = model.get_alpha(data)
-        # means, covs = model.get_means_covariances()
-        inf_means, inf_stds, inf_corrs = model.get_means_stds_corrs()
+        inf_means, inf_corrs = model.get_means_covariances()
+        # inf_means, inf_stds, inf_corrs = model.get_means_stds_corrs()
         inf_stc = modes.argmax_time_courses(alp)
         
         # Re-order the inferred state time course to match the ground truth
@@ -245,7 +246,7 @@ for model_name, config in model_configs.items():
             'dice': dice,
             'means': inf_means,
             'corrs': inf_corrs,
-            'stds': inf_stds,
+            # 'stds': inf_stds,
             'inf_stc': inf_stc,
             'sim_stc': sim_stc
         }
@@ -253,8 +254,22 @@ for model_name, config in model_configs.items():
         print(f"Free energy: {free_energy}")
         print(f"Dice coefficient: {dice}")
 
+        # Save individual run results to a file
+        combination_file = os.path.join(results_dir, f"results_{model_name}_{data_name}.pkl")
+        with open(combination_file, "wb") as f:
+            pickle.dump(results[model_name][data_name], f)
+        print(f"Saved results for model '{model_name}' on dataset '{data_name}' to {combination_file}")
+
 # Print summary of all runs
 print("\nSummary of all runs:")
 for m_name, runs in results.items():
     for d_name, res in runs.items():
         print(f"Model '{m_name}' on dataset '{d_name}': Free energy = {res['free_energy']}, Dice = {res['dice']}")
+
+
+# Save the results object to a file in the results directory
+results_file = os.path.join(results_dir, "results_all.pkl")
+with open(results_file, "wb") as f:
+    pickle.dump(results, f)
+    
+print(f"Results saved to {results_file}")

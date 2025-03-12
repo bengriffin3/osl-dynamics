@@ -295,8 +295,8 @@ class MDyn_MVN(MVN):
         for time_courses in np.unique(state_time_courses, axis=0):
             # Extract the different time courses
             alpha = time_courses[:, 0]
-            # beta = time_courses[:, 1]
-            # gamma = time_courses[:, 2]
+            beta = time_courses[:, 1]
+            gamma = time_courses[:, 2]
 
             # Compute mu: if means are active, use the weighted sum; otherwise zeros.
             if active_means:
@@ -334,7 +334,7 @@ class MDyn_MVN(MVN):
             )
 
         # Add an error to the data at all time points
-        # data += np.random.normal(scale=self.observation_error, size=data.shape)
+        data += np.random.normal(scale=self.observation_error, size=data.shape)
 
         return data.astype(np.float32)
     
