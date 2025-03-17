@@ -2865,10 +2865,9 @@ def plot_box(
 
 
     # set x-ticks
-    max_position = len(data)  # Maximum number of positions available for x-ticks
-    xtick_positions = list(range(xtick_step, max_position + 1, xtick_step))
+    xtick_positions = range(1, len(labels) + 1)  # Ensure each box has a corresponding tick
     ax.set_xticks(xtick_positions)
-    ax.set_xticklabels([str(pos) for pos in xtick_positions])
+    ax.set_xticklabels(labels, ha="right")
 
     # Set title and axis labels
     ax.set_title(title,fontsize=20)
