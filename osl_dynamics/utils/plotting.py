@@ -2787,8 +2787,6 @@ def plot_box(
     else:
         labels = [None] * len(data)
 
-    print(f'labels are: {labels}')
-
     if y_range is None:
         y_range = [None, None]
 
@@ -2865,9 +2863,12 @@ def plot_box(
 
 
     # set x-ticks
-    xtick_positions = range(1, len(labels) + 1)  # Ensure each box has a corresponding tick
+    # Set x-ticks every two positions
+    xtick_positions = list(range(1, len(labels) + 1, 2))  # 1, 3, 5, ...
+    xtick_labels = [labels[i] for i in range(0, len(labels), 2)]  # label0, label2, label4, ...
+
     ax.set_xticks(xtick_positions)
-    ax.set_xticklabels(labels, ha="right")
+    ax.set_xticklabels(xtick_labels, ha="right")
 
     # Set title and axis labels
     ax.set_title(title,fontsize=20)
