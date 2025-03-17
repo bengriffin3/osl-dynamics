@@ -204,7 +204,7 @@ def dynemo_ukb(save_dir):
     import pickle
     from osl_dynamics.simulation.mvn import MVN
 
-    save_dir = f'{save_dir}/soft_mixing/'
+    save_dir = f'{save_dir}/dynemo_ukb/'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     if not os.path.exists(f'{save_dir}truth/'):
