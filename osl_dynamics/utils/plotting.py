@@ -2868,7 +2868,7 @@ def plot_box(
     xtick_labels = [labels[i] for i in range(0, len(labels), 2)]  # label0, label2, label4, ...
 
     ax.set_xticks(xtick_positions)
-    ax.set_xticklabels(xtick_labels, ha="right")
+    ax.set_xticklabels(xtick_labels)
 
     # Set title and axis labels
     ax.set_title(title,fontsize=20)
