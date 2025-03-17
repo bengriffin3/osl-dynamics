@@ -2787,7 +2787,7 @@ def plot_box(
     else:
         labels = [None] * len(data)
 
-    print('labels are: {labels}')
+    print(f'labels are: {labels}')
 
     if y_range is None:
         y_range = [None, None]
