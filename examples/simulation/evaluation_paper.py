@@ -318,3 +318,7 @@ def main(simulation_list=None):
 
     if 'dynemo_fair' in simulation_list:
         dynemo_fair(save_dir)
+
+    if 'dynemo_meg' in simulation_list:
+        dynemo_meg(save_dir)
+
