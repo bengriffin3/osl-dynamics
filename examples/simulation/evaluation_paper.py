@@ -258,6 +258,32 @@ def dynemo_ukb(save_dir):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data)
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course)
 
+def dynemo_meg(save_dir):
+    import pickle
+    from osl_dynamics.simulation.mvn import MVN
+
+    save_dir = f'{save_dir}/dynemo_meg/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
+
+    n_subjects = 10
+    meg_dir = './dynemo-paper-resting-state/data/'
+    with open(f"{meg_dir}/alp.pkl", "rb") as f:  # "rb" means read binary mode
+        alpha = pickle.load(f)
+    alpha_trimmed = [a[:60000] for a in alpha]
+    covariances = np.load(f'{meg_dir}/covs.npy')
+
+    np.save(f'{save_dir}truth/state_covariances.npy', covariances)
+
+    mvn = MVN(means='zero',covariances=covariances)
+
+    for i in range(n_subjects):
+        time_course = alpha_trimmed[i]
+        data = mvn.simulate_data(time_course)
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data)
+        np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course)
 
 def main(simulation_list=None):
     save_dir = './data/node_timeseries/simulation_final/'
