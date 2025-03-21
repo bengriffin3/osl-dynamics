@@ -214,7 +214,7 @@ def dynemo_fair(save_dir):
         n_modes=n_modes,
         n_channels=n_channels,
         #relative_activation=[1, 0.5, 0.5, 0.25, 0.25, 0.2],
-        relative_activation=[1.0,1.0,1.0,1.0,1.0,1.0],
+        relative_activation=[1.0,1.2,1.4,1.6,1.8,2.0],
         amplitudes=[6, 5, 4, 3, 2, 1],
         frequencies=[1.2, 2.2, 3.2, 4.2, 5.2, 6.2],
         sampling_frequency=250,
