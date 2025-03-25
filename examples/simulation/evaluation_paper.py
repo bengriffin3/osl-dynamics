@@ -347,6 +347,8 @@ def main(simulation_list=None):
         hmm_hrf(**config)
     if 'dynemo_iid' in simulation_list:
         dynemo_iid(**config)
+    if 'dynemo_iid_new' in simulation_list:
+        dynemo_iid_new(**config)
     if 'dynemo_hrf' in simulation_list:
         dynemo_hrf(**config)
     if 'swc_iid' in simulation_list:
