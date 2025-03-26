@@ -130,7 +130,7 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         os.makedirs(f'{save_dir}truth/')
 
     frequency_ratio = 1.389/250
-    frequencies = [1.2, 1.7, 2.45, 3.45, 4.7, 6.2]
+    frequencies = [1.2, 1.7, 2.2, 3.2, 4.7, 6.7]
     new_frequencies = [i*frequency_ratio for i in frequencies]
     sim = simulation.MixedSine_MVN(
         n_samples=n_subjects * n_samples,
