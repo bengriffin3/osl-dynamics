@@ -372,7 +372,7 @@ def main(simulation_list=None):
         'n_subjects': 500,
         'n_states': 6,
         'n_channels': 50,
-        'n_samples': 1200,
+        'n_samples': 400,
         'tr': 0.72
     }
 
