@@ -132,7 +132,7 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         n_samples=n_subjects * n_samples,
         n_modes=n_states,
         n_channels=n_channels,
-        relative_activation=[[1, 1.75, 2.5, 3.25, 4.0, 4.75]],
+        relative_activation=[1, 1.75, 2.5, 3.25, 4.0, 4.75],
         amplitudes=[6, 5, 4, 3, 2, 1],
         frequencies=[1.2, 2.2, 3.2, 4.2, 6.2, 8.2],
         sampling_frequency=250,
