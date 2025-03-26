@@ -122,6 +122,37 @@ def dynemo_iid_new(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
 
+def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
+    save_dir = f'{save_dir}/dynemo_iid_final/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
+    sim = simulation.MixedSine_MVN(
+        n_samples=n_subjects * n_samples,
+        n_modes=n_states,
+        n_channels=n_channels,
+        relative_activation=[1, 0.5, 0.5, 0.25, 0.25, 0.1],
+        amplitudes=[6, 5, 4, 3, 2, 1],
+        frequencies=[1, 2, 3, 4, 6, 8],
+        sampling_frequency=250,
+        means="zero",
+        covariances="random",
+        random_seed=123,
+    )
+
+    data = sim.time_series
+    time_course = sim.mode_time_course
+    data = data.reshape(n_subjects, -1, n_channels)
+    time_course = time_course.reshape(n_subjects, -1, n_states)
+
+    np.save(f'{save_dir}truth/state_covariances.npy', sim.obs_mod.covariances)
+
+    for i in range(n_subjects):
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
+        np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
+
+
 
 def dynemo_hrf(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
     save_dir = f'{save_dir}/dynemo_hrf/'
@@ -349,6 +380,9 @@ def main(simulation_list=None):
         dynemo_iid(**config)
     if 'dynemo_iid_new' in simulation_list:
         dynemo_iid_new(**config)
+
+    if 'dynemo_iid_final' in simulation_list:
+        dynemo_iid_final(**config)
     if 'dynemo_hrf' in simulation_list:
         dynemo_hrf(**config)
     if 'swc_iid' in simulation_list:
