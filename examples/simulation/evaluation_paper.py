@@ -139,7 +139,7 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         n_channels=n_channels,
         relative_activation=[1.0, 1.75, 2.5, 3.25, 4.0, 4.75],
         amplitudes=[6, 5, 4, 3, 2, 1],
-        frequencies=[1.2, 2.2, 3.2, 4.2, 5.2, 6.2],
+        frequencies=[1.3, 2.3, 3.3, 4.3, 5.3, 6.3],
         sampling_frequency=250,
         means="zero",
         covariances="random",
@@ -372,7 +372,7 @@ def main(simulation_list=None):
         'n_subjects': 500,
         'n_states': 6,
         'n_channels': 50,
-        'n_samples': 400,
+        'n_samples': 1200,
         'tr': 0.72
     }
 
