@@ -138,6 +138,7 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         sampling_frequency=250,
         means="zero",
         covariances="random",
+        n_covariances_act=3
     )
 
     data = sim.time_series
