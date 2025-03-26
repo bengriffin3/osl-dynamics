@@ -130,17 +130,17 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
     if not os.path.exists(f'{save_dir}truth/'):
         os.makedirs(f'{save_dir}truth/')
 
-    frequency_ratio = 1.389 / 250
-    frequencies = [1.2, 2.2, 3.2, 4.2, 5.2, 6.2]
-    new_frequencies = [i * frequency_ratio for i in frequencies]
+    #frequency_ratio = 1.389 / 250
+    #frequencies = [1.2, 2.2, 3.2, 4.2, 5.2, 6.2]
+    #new_frequencies = [i * frequency_ratio for i in frequencies]
     sim = simulation.MixedSine_MVN(
         n_samples=n_subjects * n_samples,
         n_modes=n_states,
         n_channels=n_channels,
         relative_activation=[1.0, 1.75, 2.5, 3.25, 4.0, 4.75],
         amplitudes=[6, 5, 4, 3, 2, 1],
-        frequencies=new_frequencies,
-        sampling_frequency=1.389,
+        frequencies=[1.2, 2.2, 3.2, 4.2, 5.2, 6.2],
+        sampling_frequency=250,
         means="zero",
         covariances="random",
         n_covariances_act=3
