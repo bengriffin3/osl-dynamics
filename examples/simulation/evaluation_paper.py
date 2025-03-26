@@ -122,6 +122,7 @@ def dynemo_iid_new(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
 
+
 def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
     save_dir = f'{save_dir}/dynemo_iid_final/'
     if not os.path.exists(save_dir):
@@ -129,20 +130,20 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
     if not os.path.exists(f'{save_dir}truth/'):
         os.makedirs(f'{save_dir}truth/')
 
-    frequency_ratio = 1.389/250
-    frequencies = [1.2, 1.7, 2.2, 3.2, 4.7, 6.7]
-    new_frequencies = [i*frequency_ratio for i in frequencies]
+    frequency_ratio = 1.389 / 250
+    frequencies = [1.2, 2.2, 3.2, 4.2, 5.2, 6.2]
+    new_frequencies = [i * frequency_ratio for i in frequencies]
     sim = simulation.MixedSine_MVN(
         n_samples=n_subjects * n_samples,
         n_modes=n_states,
         n_channels=n_channels,
-        relative_activation=[1, 1.5, 2, 2.5, 3.0, 3.5],
-        amplitudes=[3.5, 3, 2.5, 2, 1.5, 1],
+        relative_activation=[1.0, 1.75, 2.5, 3.25, 4.0, 4.75],
+        amplitudes=[6, 5, 4, 3, 2, 1],
         frequencies=new_frequencies,
         sampling_frequency=1.389,
         means="zero",
         covariances="random",
-        n_covariances_act=5
+        n_covariances_act=3
     )
 
     data = sim.time_series
@@ -155,7 +156,6 @@ def dynemo_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
     for i in range(n_subjects):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
         np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course[i])
-
 
 
 def dynemo_hrf(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
