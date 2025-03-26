@@ -412,9 +412,11 @@ class MDyn_HMM_MVN(Simulation):
         self.time_series_means = self.obs_mod.simulate_data(self.state_time_course, "means")
         self.time_series_corrs = self.obs_mod.simulate_data(self.state_time_course, "corrs")
         self.time_series_stds = self.obs_mod.simulate_data(self.state_time_course, "stds")
-        self.time_series_means_corrs = self.obs_mod.simulate_data(self.state_time_course, "means&corrs")
-        self.time_series_means_stds = self.obs_mod.simulate_data(self.state_time_course, "means&stds")
-        self.time_series_stds_corrs = self.obs_mod.simulate_data(self.state_time_course, "stds&corrs")
+        self.time_series_means_corrs = self.obs_mod.simulate_data(self.state_time_course, "meansandcorrs")
+        self.time_series_means_stds = self.obs_mod.simulate_data(self.state_time_course, "meansandstds")
+        self.time_series_stds_corrs = self.obs_mod.simulate_data(self.state_time_course, "stdsandcorrs")
+        self.time_series_stds_corrs = self.obs_mod.simulate_data(self.state_time_course, "stdsandcorrs")
+        self.time_series_means_then_covs = self.obs_mod.simulate_data(self.state_time_course, "means_then_covs")
 
 
     @property

@@ -323,6 +323,11 @@ class MDyn_MVN(MVN):
             else:
                 G = np.eye(self.n_channels)
 
+            if dt == "means_then_covs":
+                mu = np.sum(self.means * alpha[:, np.newaxis], axis=0)
+                F = np.sum(self.corrs * beta[:, np.newaxis, np.newaxis], axis=0)
+                G = np.diag(np.sum(self.stds * beta[:, np.newaxis], axis=0))
+
             # Calculate covariance matrix from the standard deviation and corr
             sigma = G @ F @ G
 
