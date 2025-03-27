@@ -102,7 +102,7 @@ def hmm_iid_real(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         time_course = alpha[i]
         data = mvn.simulate_data(time_course)
         np.savetxt(f'{save_dir}{10001 + i}.txt', data)
-        np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course)
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course)
 
 
 def hmm_hrf(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
