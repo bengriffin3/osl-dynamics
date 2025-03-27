@@ -88,7 +88,7 @@ if __name__ == '__main__':
         np.save(f'{plot_dir}/second_scan_covs_{i}.npy',covs)
     '''
 
-
+    '''
     # Step 4: Create subject-specific feature vectors using matched states
     def create_feature_vectors(covs, indices):
         N_subjects, N_states, N_channels, _ = covs.shape
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 [covs[subj, indices[state]][upper_tri_indices] for state in range(N_states)])
 
         return feature_vectors
-
+    '''
     '''
     # Define a very simple test case:
     covs = np.array([
@@ -202,3 +202,63 @@ if __name__ == '__main__':
 
             print(f"Iteration ({i},{j}) - Subject Label Prediction Accuracy: {prediction_accuracy:.4f}")
     '''
+    # Calculate static functional connectivity
+    # Step 7: Compute similarity matrix and evaluate prediction accuracy. Discussion with Steve
+    def full_to_partial_correlation(corr_matrices):
+        """
+        Convert full correlation matrices to partial correlation matrices.
+
+        Parameters:
+        corr_matrices : np.ndarray
+            Array of shape (N_subjects, N_channels, N_channels) containing full correlation matrices.
+
+        Returns:
+        partial_corrs : np.ndarray
+            Array of shape (N_subjects, N_channels, N_channels) containing partial correlation matrices.
+        """
+        n_subjects, n_channels, _ = corr_matrices.shape
+        partial_corrs = np.zeros_like(corr_matrices)
+
+        for i in range(n_subjects):
+            # Regularize to avoid numerical issues (optional but recommended)
+            corr = corr_matrices[i]
+            reg_corr = corr + 1e-5 * np.eye(n_channels)
+
+            # Invert the correlation matrix to get the precision matrix
+            precision = np.linalg.inv(reg_corr)
+
+            # Compute partial correlations
+            d = np.sqrt(np.diag(precision))
+            outer_d = np.outer(d, d)
+            partial = -precision / outer_d
+            np.fill_diagonal(partial, 1.0)  # Set diagonal to 1
+
+            partial_corrs[i] = partial
+
+        return partial_corrs
+
+
+    sFC_1 = np.load(f'{plot_dir}/static_first_scan.npy')
+    sFC_2 = np.load(f'{plot_dir}/static_second_scan.npy')
+
+    pFC_1 = full_to_partial_correlation(sFC_1)
+    pFC_2 = full_to_partial_correlation(sFC_2)
+    upper_tri_indices = np.triu_indices(50, k=1)  # k=0 includes the diagonal
+    pFC_1_flattened = pFC_1[:, upper_tri_indices[0], upper_tri_indices[1]]
+    pFC_2_flattened = pFC_2[:, upper_tri_indices[0], upper_tri_indices[1]]
+
+    N_subjects = len(pFC_1_flattened)
+
+    # Compute Between-Session Similarity Matrix using Pearson correlation
+    similarity_matrix = np.corrcoef(pFC_1_flattened, pFC_2_flattened)[:N_subjects, N_subjects:]
+
+    # Evaluate Subject Label Prediction Accuracy
+    correct_matches = np.argmax(similarity_matrix, axis=1) == np.arange(N_subjects)
+    prediction_accuracy = np.mean(correct_matches)
+    print('pFC prediction accuracy:', prediction_accuracy)
+
+    # Compute Top-5 Accuracy
+    top5_predictions = np.argsort(similarity_matrix, axis=1)[:, -5:]
+    top5_correct_matches = [i in top5_predictions[i] for i in range(N_subjects)]
+    top5_accuracy = np.mean(top5_correct_matches)
+    print('pFC top 5 accuracy:', top5_accuracy)
