@@ -1,4 +1,5 @@
 import os
+import pickle
 import numpy as np
 from osl_dynamics import simulation
 from osl_dynamics.array_ops import apply_hrf
@@ -61,6 +62,47 @@ def hmm_iid_final(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data[i])
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course[i])
 
+def hmm_iid_real(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
+    import random
+    from osl_dynamics.simulation.mvn import MVN
+    from osl_dynamics.inference.modes import argmax_time_courses
+
+    # Read in the ground-truth covariances and alphas.
+    with open(f"{save_dir}/hmm_ICA_50_ground_truth/alp.pkl", "rb") as f:  # "rb" means read binary mode
+        alpha_truth = pickle.load(f)
+    covariances = np.load(f'{save_dir}/hmm_ICA_50_ground_truth/covs.npy')
+
+    # Step 1: Select 500 subjects for simulation
+    random.seed(42)  # Optional: for reproducibility
+    selected_indices = random.sample(range(len(alpha_truth)), n_subjects)
+    alpha_selected = [alpha_truth[i] for i in selected_indices]
+
+    # Step 2: Truncate each array to the first 1200 time points
+    alpha_trimmed = [a[:n_samples] for a in alpha_selected]
+
+    # Step 3: argmax time courses
+    alpha = argmax_time_courses(alpha_trimmed)
+
+    save_dir = f'{save_dir}/hmm_iid_real/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
+
+    print('Sanity check:')
+    print(f'Length of alpha:{len(alpha)}')
+    print(f'alpha[0] shape: {alpha[0].shape}')
+    print(f'alpha[0][:20]: {alpha[0][:20]}')
+
+    np.save(f'{save_dir}/truth/state_covariances.npy', covariances)
+
+    mvn = MVN(means='zero', covariances=covariances)
+
+    for i in range(n_subjects):
+        time_course = alpha[i]
+        data = mvn.simulate_data(time_course)
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data)
+        np.save(f'{save_dir}truth/{10001 + i}_mode_time_course.npy', time_course)
 
 
 def hmm_hrf(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
@@ -339,7 +381,6 @@ def dynemo_fair(save_dir):
 
 
 def dynemo_ukb(save_dir):
-    import pickle
     from osl_dynamics.simulation.mvn import MVN
 
     save_dir = f'{save_dir}/dynemo_ukb/'
@@ -412,6 +453,8 @@ def main(simulation_list=None):
         hmm_hrf(**config)
     if 'hmm_iid_final' in simulation_list:
         hmm_iid_final(**config)
+    if 'hmm_iid_real' in simulation_list:
+        hmm_iid_real(**config)
     if 'dynemo_iid' in simulation_list:
         dynemo_iid(**config)
     if 'dynemo_iid_new' in simulation_list:
