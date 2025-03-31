@@ -2710,6 +2710,7 @@ def plot_box(
         demean_index=0,
         inset_start_index=None,
         y_range=None,
+        inset_y_range=None,
         x_label=None,
         y_label=None,
         title=None,
@@ -2742,6 +2743,8 @@ def plot_box(
         starting from the index.
     y_range : list, optional
         Minimum and maximum for y-axis.
+    inset_y_range : list, optional
+        Minimum and maximum for inset y-axis.
     x_label : str, optional
         Label for x-axis.
     y_label : str, optional
@@ -2860,6 +2863,10 @@ def plot_box(
         inset_xtick_positions = list(range(1, max_inset_position + 1, xtick_step))
         small_ax.set_xticks(inset_xtick_positions)
         small_ax.set_xticklabels([str(pos + inset_start_index) for pos in inset_xtick_positions], rotation=45)
+
+        # Set y-axis range for the inset plot
+        if inset_y_range is not None:
+            small_ax.set_ylim(inset_y_range)
 
 
     # set x-ticks
