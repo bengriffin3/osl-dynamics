@@ -21,13 +21,13 @@ import pandas as pd
 from .pipeline import run_pipeline_from_file
 from ..data.base import Data
 from ..evaluate.cross_validation import CVSplit, CVBase, CVHMM, CVSWC, CVDyNeMo, BCV, NCV
-from ..inference.metrics import twopair_riemannian_distance
+from ..inference.metrics import twopair_riemannian_distance,alpha_correlation
 from ..inference.modes import (argmax_time_courses, fractional_occupancies,
                                mean_lifetimes,mean_intervals,reweight_alphas,hungarian_pair)
 from ..analysis.power import independent_components_to_surface_maps as ic2surface
 from ..analysis.workbench import render
 from ..utils.misc import override_dict_defaults
-from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing, plot_matrices, plot_brain_surface
+from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairing,plot_mode_no_pairing, plot_matrices, plot_brain_surface
 from ..array_ops import cov2corr, first_eigenvector
 
 
@@ -1026,8 +1026,36 @@ class BatchAnalysis:
                      filename=f'{plot_dir}/std_norm_alpha.svg'
                      )
 
-        ### Analysis against ground truth
+        ### Compare against ground truth
         if ground_truth_dir is not None:
+            ground_truth_covs = np.load(f'{ground_truth_dir}/state_covariances.npy')
+            ground_truth_n_state = len(ground_truth_covs)
+            # Find all the ground_truth_alpha files
+            alpha_truth_files = [f for f in os.listdir(ground_truth_dir) if f.endswith('time_course')]
+            alpha_truth_files.sort()
+            ground_truth_alpha = []
+            for file in alpha_truth_files:
+                ground_truth_alpha.append(np.load(file))
+
+            riem = twopair_riemannian_distance(ground_truth_covs, covs)
+            cor = alpha_correlation(ground_truth_alpha, alpha, return_diagonal=False)
+            if n_state == ground_truth_n_state:
+                order, riem_reorder = hungarian_pair(riem, distance=True)
+                plot_mode_pairing(riem_reorder,
+                                  order,
+                                  title=f'Riem distance',
+                                  filename=f'{plot_dir}/riem_ground_truth.svg'
+                                  )
+                order, cor_reorder = hungarian_pair(cor, distance=False)
+                plot_mode_pairing(cor_reorder,
+                                  order,
+                                  title=f'Alpha correlation',
+                                  filename=f'{plot_dir}/alpha_ground_truth.svg'
+                                  )
+            else:
+                plot_mode_no_pairing(riem,title=f'Riem distance',filename=f'{plot_dir}/riem_ground_truth.svg')
+                plot_mode_no_pairing(cor,title='Alpha correlation',filename=f'{plot_dir}/alpha_ground_truth.svg')
+
             
 
         if covs is not None:
