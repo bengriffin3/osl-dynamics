@@ -908,7 +908,7 @@ class BatchAnalysis:
         else:
             return mean_diagonal
 
-    def post_hoc_analysis(self,model='hmm',n_state=6,sampling_frequency=1.389):
+    def post_hoc_analysis(self,model='hmm',n_state=6,sampling_frequency=1.389,ground_truth_dir=None):
         save_dir = (f'{self.config_path}/{model}_state_{n_state}/repeat_1/')
 
         plot_dir = f'{self.analysis_path}/{model}_state_{n_state}/'
@@ -1025,6 +1025,10 @@ class BatchAnalysis:
                      y_label="Std alpha",
                      filename=f'{plot_dir}/std_norm_alpha.svg'
                      )
+
+        ### Analysis against ground truth
+        if ground_truth_dir is not None:
+            
 
         if covs is not None:
             # Plot the covariance matrix first.
