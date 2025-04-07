@@ -2859,26 +2859,34 @@ def plot_box(
         ax.text(max_median_index + 1, ax.get_ylim()[1], '*', **text_kwargs)
         # ax.text(max_median_index + 1, bp['caps'][max_median_index * 2 + 1].get_data()[1], '*', ha='center', va='bottom')
 
-        # If p_value threshold is given, find first non-significant model (one-sided paired t-test)
+        # If p_value threshold is given, find the smallest number of states
+        # that is NOT significantly worse than the best-performing model
         if p_value is not None:
             best_data = np.array(data[max_median_index])
+            candidate_index = None  # track the last non-significantly-worse index
+
             for i in range(max_median_index - 1, -1, -1):
                 current_data = np.array(data[i])
                 if len(best_data) != len(current_data):
                     continue
                 t_stat, p = ttest_rel(best_data, current_data, alternative='greater')
+
                 if p > p_value:
-                    # Mark this model with a dagger and annotate p-value
-                    ax.text(i + 1, ax.get_ylim()[1], '†', **text_kwargs)
-                    ax.text(
-                        i + 1,
-                        ax.get_ylim()[1] * 0.98,
-                        f"p = {p:.2g}",
-                        fontsize='large',
-                        ha='center',
-                        va='top'
-                    )
-                    break  # Only mark the first (smallest) such model
+                    candidate_index = i  # keep going, not significantly worse
+                else:
+                    break  # first significantly worse → stop here
+
+            if candidate_index is not None:
+                # Mark candidate (i.e., smallest number of states not significantly worse)
+                ax.text(candidate_index + 1, ax.get_ylim()[1], '†', **text_kwargs)
+                ax.text(
+                    candidate_index + 1,
+                    ax.get_ylim()[1] * 0.98,
+                    f"p = {p:.2g}",
+                    fontsize='large',
+                    ha='center',
+                    va='top'
+                )
 
     if inset_start_index is not None:
         small_ax = fig.add_axes([0.65, 0.3, 0.3, 0.3])  # Adjust these values as needed for positioning
