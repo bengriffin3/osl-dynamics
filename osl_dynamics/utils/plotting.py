@@ -2863,7 +2863,8 @@ def plot_box(
         # that is NOT significantly worse than the best-performing model
         if p_value is not None:
             best_data = np.array(data[max_median_index])
-            candidate_index = None  # track the last non-significantly-worse index
+            candidate_index = None
+            p_candidate = None  # store the associated p-value for annotation
 
             for i in range(max_median_index - 1, -1, -1):
                 current_data = np.array(data[i])
@@ -2872,17 +2873,18 @@ def plot_box(
                 t_stat, p = ttest_rel(best_data, current_data, alternative='greater')
 
                 if p > p_value:
-                    candidate_index = i  # keep going, not significantly worse
+                    candidate_index = i
+                    p_candidate = p  # save p-value associated with that index
                 else:
-                    break  # first significantly worse → stop here
+                    break
 
-            if candidate_index is not None:
-                # Mark candidate (i.e., smallest number of states not significantly worse)
+            if candidate_index is not None and p_candidate is not None:
+                # Mark candidate model
                 ax.text(candidate_index + 1, ax.get_ylim()[1], '†', **text_kwargs)
                 ax.text(
                     candidate_index + 1,
                     ax.get_ylim()[1] * 0.98,
-                    f"p = {p:.2g}",
+                    f"p = {p_candidate:.2g}",
                     fontsize='large',
                     ha='center',
                     va='top'
