@@ -1031,7 +1031,7 @@ class BatchAnalysis:
             ground_truth_covs = np.load(f'{ground_truth_dir}/state_covariances.npy')
             ground_truth_n_state = len(ground_truth_covs)
             # Find all the ground_truth_alpha files
-            alpha_truth_files = [f for f in os.listdir(ground_truth_dir) if f.endswith('time_course')]
+            alpha_truth_files = [f for f in os.listdir(ground_truth_dir) if f.endswith('time_course.npy')]
             alpha_truth_files.sort()
             ground_truth_alpha = []
             for file in alpha_truth_files:
