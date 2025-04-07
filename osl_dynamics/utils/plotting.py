@@ -8,6 +8,7 @@ from itertools import zip_longest
 
 import numpy as np
 import pandas as pd
+from scipy.stats import ttest_rel
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
@@ -2706,6 +2707,7 @@ def plot_box(
         labels=None,
         plot_samples=True,
         mark_best=True,
+        p_value=None,
         demean=False,
         demean_index=0,
         inset_start_index=None,
@@ -2734,6 +2736,9 @@ def plot_box(
         Whether to plot the original samples
     mark_best: bool, optional
         Whether to mark the best performed model.
+    p_value: float, optional
+        Whether to mark the model with smallest number of states/modes
+        with no significant different difference to the best performed model.
     demean: bool, optional
         Whether to demean *across* the list
     demean_index: int, optional
@@ -2853,6 +2858,27 @@ def plot_box(
         max_median_index = np.argmax(data_median)
         ax.text(max_median_index + 1, ax.get_ylim()[1], '*', **text_kwargs)
         # ax.text(max_median_index + 1, bp['caps'][max_median_index * 2 + 1].get_data()[1], '*', ha='center', va='bottom')
+
+        # If p_value threshold is given, find first non-significant model (one-sided paired t-test)
+        if p_value is not None:
+            best_data = np.array(data[max_median_index])
+            for i in range(max_median_index - 1, -1, -1):
+                current_data = np.array(data[i])
+                if len(best_data) != len(current_data):
+                    continue
+                t_stat, p = ttest_rel(best_data, current_data, alternative='greater')
+                if p > p_value:
+                    # Mark this model with a dagger and annotate p-value
+                    ax.text(i + 1, ax.get_ylim()[1], '†', **text_kwargs)
+                    ax.text(
+                        i + 1,
+                        ax.get_ylim()[1] * 0.98,
+                        f"p = {p:.2g}",
+                        fontsize='large',
+                        ha='center',
+                        va='top'
+                    )
+                    break  # Only mark the first (smallest) such model
 
     if inset_start_index is not None:
         small_ax = fig.add_axes([0.65, 0.3, 0.3, 0.3])  # Adjust these values as needed for positioning

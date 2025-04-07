@@ -462,7 +462,7 @@ class BatchAnalysis:
         if not os.path.exists(self.analysis_path):
             os.makedirs(self.analysis_path)
 
-    def compare(self, demean_index=-1,inset_start_index=None,y_range=None,inset_y_range=None,mark_best=True,plot_end_index=None,fig_kwargs=None,folder='Y_test/',object='log_likelihood'):
+    def compare(self, demean_index=-1,inset_start_index=None,y_range=None,inset_y_range=None,mark_best=True,p_value=None,plot_end_index=None,fig_kwargs=None,folder='Y_test/',object='log_likelihood'):
         '''
         By default of bi-cross validation, we should compare the final log_likelihood on the Y_test.
         But for sanity check, and potentiall understand how the method work, we are also interested in
@@ -507,6 +507,7 @@ class BatchAnalysis:
                      y_range=y_range,
                      inset_y_range=inset_y_range,
                      mark_best=mark_best,
+                     p_value=p_value,
                      inset_start_index=inset_start_index,
                      fig_kwargs=fig_kwargs,
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}_demean.pdf')
@@ -520,6 +521,7 @@ class BatchAnalysis:
                      y_range=y_range,
                      inset_y_range=inset_y_range,
                      mark_best=mark_best,
+                     p_value=p_value,
                      inset_start_index=inset_start_index,
                      fig_kwargs=fig_kwargs,
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}_demean.svg')
@@ -533,6 +535,7 @@ class BatchAnalysis:
                      y_range=y_range,
                      inset_y_range=inset_y_range,
                      mark_best=mark_best,
+                     p_value=p_value,
                      inset_start_index=inset_start_index,
                      fig_kwargs=fig_kwargs,
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}.pdf')
@@ -546,6 +549,7 @@ class BatchAnalysis:
                      y_range=y_range,
                      inset_y_range=inset_y_range,
                      mark_best=mark_best,
+                     p_value=p_value,
                      inset_start_index=inset_start_index,
                      fig_kwargs=fig_kwargs,
                      filename=os.path.join(self.analysis_path, f'{model}_{folder.split("/")[0]}_{object}.svg')
