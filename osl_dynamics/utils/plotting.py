@@ -2877,18 +2877,21 @@ def plot_box(
                     p_candidate = p  # save p-value associated with that index
                 else:
                     break
-            ax.text(candidate_index + 1, ax.get_ylim()[1], '†', **text_kwargs)
+            dagger_y = ax.get_ylim()[1] * 0.96 if candidate_index == max_median_index else ax.get_ylim()[1]
+            ax.text(candidate_index + 1, dagger_y, '†', **text_kwargs)
 
             if candidate_index != max_median_index and p_candidate is not None:
+                # Get y-axis limits to anchor the p-value near the bottom
+                y_min, y_max = ax.get_ylim()
+                p_text_y = y_min + 0.02 * (y_max - y_min)  # small offset above bottom
                 # Mark candidate model
-
                 ax.text(
                     candidate_index + 1,
-                    ax.get_ylim()[1] * 0.98,
+                    p_text_y,
                     f"p = {p_candidate:.2g}",
                     fontsize='large',
                     ha='center',
-                    va='top'
+                    va='bottom'
                 )
 
     if inset_start_index is not None:
