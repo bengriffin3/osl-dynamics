@@ -2863,7 +2863,7 @@ def plot_box(
         # that is NOT significantly worse than the best-performing model
         if p_value is not None:
             best_data = np.array(data[max_median_index])
-            candidate_index = None
+            candidate_index = max_median_index
             p_candidate = None  # store the associated p-value for annotation
 
             for i in range(max_median_index - 1, -1, -1):
@@ -2877,10 +2877,11 @@ def plot_box(
                     p_candidate = p  # save p-value associated with that index
                 else:
                     break
+            ax.text(candidate_index + 1, ax.get_ylim()[1], '†', **text_kwargs)
 
-            if candidate_index is not None and p_candidate is not None:
+            if candidate_index != max_median_index and p_candidate is not None:
                 # Mark candidate model
-                ax.text(candidate_index + 1, ax.get_ylim()[1], '†', **text_kwargs)
+
                 ax.text(
                     candidate_index + 1,
                     ax.get_ylim()[1] * 0.98,
