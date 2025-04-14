@@ -104,6 +104,77 @@ def hmm_iid_real(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
         np.savetxt(f'{save_dir}{10001 + i}.txt', data)
         np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course)
 
+def hmm_iid_meg_tde(save_dir,):
+    from osl_dynamics.simulation.mvn import MVN
+    from osl_dynamics.inference.modes import argmax_time_courses
+
+    # Read in the ground-truth covariances and alphas.
+    with open(f"{save_dir}/hmm_meg_tde_ground_truth/alp.pkl", "rb") as f:  # "rb" means read binary mode
+        alpha = pickle.load(f)
+    means = np.load(f'{save_dir}/hmm_meg_tde_ground_truth/means.npy')
+    covariances = np.load(f'{save_dir}/hmm_meg_tde_ground_truth/covs.npy')
+
+
+    # Step 3: argmax time courses
+    alpha = argmax_time_courses(alpha)
+
+    save_dir = f'{save_dir}/hmm_iid_meg_tde/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
+
+    print('Sanity check:')
+    print(f'Length of alpha:{len(alpha)}')
+    print(f'alpha[0] shape: {alpha[0].shape}')
+    print(f'alpha[0][:20]: {alpha[0][:20]}')
+
+    np.save(f'{save_dir}/truth/state_covariances.npy', covariances)
+    np.save(f'{save_dir}/truth/state_means.npy', means)
+
+    mvn = MVN(means=means, covariances=covariances)
+
+    for i in range(len(alpha)):
+        time_course = alpha[i]
+        data = mvn.simulate_data(time_course)
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data)
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course)
+
+def hmm_iid_meg_78(save_dir,):
+    from osl_dynamics.simulation.mvn import MVN
+    from osl_dynamics.inference.modes import argmax_time_courses
+
+    # Read in the ground-truth covariances and alphas.
+    with open(f"{save_dir}/hmm_meg_78_ground_truth/alp.pkl", "rb") as f:  # "rb" means read binary mode
+        alpha = pickle.load(f)
+    means = np.load(f'{save_dir}/hmm_meg_78_ground_truth/means.npy')
+    covariances = np.load(f'{save_dir}/hmm_meg_78_ground_truth/covs.npy')
+
+
+    # Step 3: argmax time courses
+    alpha = argmax_time_courses(alpha)
+
+    save_dir = f'{save_dir}/hmm_iid_meg_78/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(f'{save_dir}truth/'):
+        os.makedirs(f'{save_dir}truth/')
+
+    print('Sanity check:')
+    print(f'Length of alpha:{len(alpha)}')
+    print(f'alpha[0] shape: {alpha[0].shape}')
+    print(f'alpha[0][:20]: {alpha[0][:20]}')
+
+    np.save(f'{save_dir}/truth/state_covariances.npy', covariances)
+    np.save(f'{save_dir}/truth/state_means.npy', means)
+
+    mvn = MVN(means=means, covariances=covariances)
+
+    for i in range(len(alpha)):
+        time_course = alpha[i]
+        data = mvn.simulate_data(time_course)
+        np.savetxt(f'{save_dir}{10001 + i}.txt', data)
+        np.save(f'{save_dir}truth/{10001 + i}_state_time_course.npy', time_course)
 
 def hmm_hrf(save_dir, n_subjects, n_samples, n_states, n_channels, tr):
     save_dir = f'{save_dir}/hmm_hrf/'
@@ -519,3 +590,10 @@ def main(simulation_list=None):
 
     if 'dynemo_meg' in simulation_list:
         dynemo_meg(save_dir)
+
+    if 'hmm_iid_meg_tde' in simulation_list:
+        hmm_iid_meg_tde(save_dir)
+
+    if 'hmm_iid_meg_78' in simulation_list:
+        hmm_iid_meg_78(save_dir)
+
