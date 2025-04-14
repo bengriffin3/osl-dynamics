@@ -2875,8 +2875,8 @@ def plot_box(
                 if p > p_value:
                     candidate_index = i
                     p_candidate = p  # save p-value associated with that index
-                else:
-                    break
+                #else:
+                #    break
             # Get y-axis limits
             y_min, y_max = ax.get_ylim()
             dagger_y = y_max * 0.96 if candidate_index == max_median_index else y_max
