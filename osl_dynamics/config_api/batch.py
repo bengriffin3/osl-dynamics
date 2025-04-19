@@ -1047,12 +1047,16 @@ class BatchAnalysis:
             cor = alpha_correlation(ground_truth_alpha, alpha, return_diagonal=False)
             if n_state == ground_truth_n_state:
                 order, riem_reorder = hungarian_pair(riem, distance=True)
+                order['row'] = [i + 1 for i in order['row']]
+                order['col'] = [i + 1 for i in order['col']]
                 plot_mode_pairing(riem_reorder,
                                   order,
                                   title=f'Riem distance',
                                   filename=f'{plot_dir}/riem_ground_truth.svg'
                                   )
                 order, cor_reorder = hungarian_pair(cor, distance=False)
+                order['row'] = [i + 1 for i in order['row']]
+                order['col'] = [i + 1 for i in order['col']]
                 plot_mode_pairing(cor_reorder,
                                   order,
                                   title=f'Alpha correlation',
