@@ -2430,6 +2430,7 @@ def plot_mode_pairing(
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
+    print(f'default_fig_kwargs: {default_fig_kwargs}')
     fig_kwargs = override_dict_defaults(default_fig_kwargs, fig_kwargs)
 
     if sns_kwargs is None:
@@ -2534,6 +2535,7 @@ def plot_mode_no_pairing(
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
+    print(f'default_fig_kwargs: {default_fig_kwargs}')
     fig_kwargs = override_dict_defaults(default_fig_kwargs, fig_kwargs)
 
     if sns_kwargs is None:
