@@ -2424,8 +2424,8 @@ def plot_mode_pairing(
 
     if fig_kwargs is None:
         fig_kwargs = {}
-    fig_width = min(4, metrics.shape[1] + 1)
-    fig_height = min(4, metrics.shape[0] + 1)
+    fig_width = max(4, metrics.shape[1] + 1)
+    fig_height = max(4, metrics.shape[0] + 1)
     default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
@@ -2529,8 +2529,8 @@ def plot_mode_no_pairing(
 
     if fig_kwargs is None:
         fig_kwargs = {}
-    fig_width = min(4, metrics.shape[1] + 1)
-    fig_height = min(4, metrics.shape[0] + 1)
+    fig_width = max(4, metrics.shape[1] + 1)
+    fig_height = max(4, metrics.shape[0] + 1)
     default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
