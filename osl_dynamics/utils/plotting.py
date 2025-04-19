@@ -2425,12 +2425,11 @@ def plot_mode_pairing(
     if fig_kwargs is None:
         fig_kwargs = {}
     fig_width = max(4, metrics.shape[1] + 1)
-    fig_height = max(4, metrics.shape[0] + 1)
+    fig_height = max(4, metrics.shape[0])
     default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
-    print(f'default_fig_kwargs: {default_fig_kwargs}')
     fig_kwargs = override_dict_defaults(default_fig_kwargs, fig_kwargs)
 
     if sns_kwargs is None:
@@ -2530,12 +2529,11 @@ def plot_mode_no_pairing(
     if fig_kwargs is None:
         fig_kwargs = {}
     fig_width = max(4, metrics.shape[1] + 1)
-    fig_height = max(4, metrics.shape[0] + 1)
+    fig_height = max(4, metrics.shape[0])
     default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
-    print(f'default_fig_kwargs: {default_fig_kwargs}')
     fig_kwargs = override_dict_defaults(default_fig_kwargs, fig_kwargs)
 
     if sns_kwargs is None:
