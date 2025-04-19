@@ -2453,11 +2453,11 @@ def plot_mode_pairing(
     ax = sns.heatmap(data=metrics, ax=ax, **sns_kwargs)
     # Set xticks and yticks
     if indices is not None:
-        ax.set_xticks(np.arange(len(indices["col"])) + 0.5, np.array(indices["col"]) + 1, fontsize=18)
-        ax.set_yticks(np.arange(len(indices["row"])) + 0.5, np.array(indices["row"]) + 1, fontsize=18)
+        ax.set_xticks(np.arange(len(indices["col"])) + 0.5, np.array(indices["col"]) + 1, fontsize=20)
+        ax.set_yticks(np.arange(len(indices["row"])) + 0.5, np.array(indices["row"]) + 1, fontsize=20)
     else:
-        ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=18)
-        ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=18)
+        ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=20)
+        ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=20)
 
     # Set title and axis labels
     ax.set_title(title, fontsize=20)
@@ -2465,7 +2465,7 @@ def plot_mode_pairing(
     ax.set_ylabel(y_label, fontsize=20)
 
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=18)  # Set colorbar tick label font size
+    cbar.ax.tick_params(labelsize=20)  # Set colorbar tick label font size
 
     # Save the figure if a filename has been pass
     if filename is not None:
@@ -2556,8 +2556,8 @@ def plot_mode_no_pairing(
     # Create a heatmap of the correlation matrix
     ax = sns.heatmap(data=metrics, ax=ax, **sns_kwargs)
     # Set xticks and yticks
-    ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=18)
-    ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=18)
+    ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=20)
+    ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=20)
 
     # Set title and axis labels
     ax.set_title(title, fontsize=20)
@@ -2565,7 +2565,7 @@ def plot_mode_no_pairing(
     ax.set_ylabel(y_label, fontsize=20)
 
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=18)  # Set colorbar tick label font size
+    cbar.ax.tick_params(labelsize=20)  # Set colorbar tick label font size
 
     # Save the figure if a filename has been pass
     if filename is not None:

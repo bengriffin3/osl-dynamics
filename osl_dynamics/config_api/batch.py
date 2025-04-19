@@ -1059,8 +1059,14 @@ class BatchAnalysis:
                                   filename=f'{plot_dir}/alpha_ground_truth.svg'
                                   )
             else:
-                plot_mode_no_pairing(riem,title=f'Riem distance',filename=f'{plot_dir}/riem_ground_truth.svg')
-                plot_mode_no_pairing(cor,title='Alpha correlation',filename=f'{plot_dir}/alpha_ground_truth.svg')
+                plot_mode_no_pairing(riem,
+                                     #title=f'Riem distance',
+                                     filename=f'{plot_dir}/riem_ground_truth.svg'
+                                     )
+                plot_mode_no_pairing(cor,
+                                     #title='Alpha correlation',
+                                     filename=f'{plot_dir}/alpha_ground_truth.svg'
+                                     )
 
             
 
