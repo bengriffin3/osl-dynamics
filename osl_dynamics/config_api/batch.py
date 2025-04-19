@@ -1126,7 +1126,7 @@ class BatchAnalysis:
                 index = np.argsort(np.median(fo,axis=0))[::-1]
             riem_reordered = riem[index,:]
             riem_reordered = riem_reordered[:,index]
-            indices = {'row':(index+1).tolist(),'col':(index+1).tolist()}
+            indices = {'row':index.tolist(),'col':index.tolist()}
             plot_mode_pairing(riem,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem.pdf')
             plot_mode_pairing(riem_reordered,indices,fig_kwargs={'figsize':(12,9)},filename=f'{plot_dir}/riem_reordered.svg')
 
