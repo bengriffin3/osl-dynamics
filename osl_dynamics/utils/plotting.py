@@ -17,7 +17,7 @@ from matplotlib.path import Path
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from nilearn.plotting import plot_markers
 
-from osl_dynamics.array_ops import get_one_hot, demean_list,filter_nan_values
+from osl_dynamics.array_ops import get_one_hot, demean_list, filter_nan_values
 from osl_dynamics.utils.misc import override_dict_defaults
 from osl_dynamics.utils.topoplots import Topology
 from osl_dynamics.utils.parcellation import Parcellation
@@ -2424,7 +2424,9 @@ def plot_mode_pairing(
 
     if fig_kwargs is None:
         fig_kwargs = {}
-    default_fig_kwargs = {"figsize": (8, 6),
+    fig_width = min(4, metrics.shape[1] + 1)
+    fig_height = min(4, metrics.shape[0] + 1)
+    default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
@@ -2451,12 +2453,11 @@ def plot_mode_pairing(
     ax = sns.heatmap(data=metrics, ax=ax, **sns_kwargs)
     # Set xticks and yticks
     if indices is not None:
-        ax.set_xticks(np.arange(len(indices["col"])) + 0.5, np.array(indices["col"])+1, fontsize=18)
-        ax.set_yticks(np.arange(len(indices["row"])) + 0.5, np.array(indices["row"])+1, fontsize=18)
+        ax.set_xticks(np.arange(len(indices["col"])) + 0.5, np.array(indices["col"]) + 1, fontsize=18)
+        ax.set_yticks(np.arange(len(indices["row"])) + 0.5, np.array(indices["row"]) + 1, fontsize=18)
     else:
         ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=18)
         ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=18)
-
 
     # Set title and axis labels
     ax.set_title(title, fontsize=20)
@@ -2471,6 +2472,7 @@ def plot_mode_pairing(
         save(fig, filename, tight_layout=True)
     elif create_fig:
         return fig, ax
+
 
 def plot_mode_no_pairing(
         metrics,
@@ -2526,7 +2528,9 @@ def plot_mode_no_pairing(
 
     if fig_kwargs is None:
         fig_kwargs = {}
-    default_fig_kwargs = {"figsize": (8, 6),
+    fig_width = min(4, metrics.shape[1] + 1)
+    fig_height = min(4, metrics.shape[0] + 1)
+    default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
@@ -2552,8 +2556,8 @@ def plot_mode_no_pairing(
     # Create a heatmap of the correlation matrix
     ax = sns.heatmap(data=metrics, ax=ax, **sns_kwargs)
     # Set xticks and yticks
-    ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1])+1, fontsize=18)
-    ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0])+1, fontsize=18)
+    ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=18)
+    ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=18)
 
     # Set title and axis labels
     ax.set_title(title, fontsize=20)
@@ -2568,6 +2572,7 @@ def plot_mode_no_pairing(
         save(fig, filename, tight_layout=True)
     elif create_fig:
         return fig, ax
+
 
 def plot_IC_distribution(
         spatial_map,
@@ -2827,7 +2832,7 @@ def plot_box(
         fig, ax = create_figure(**fig_kwargs)
 
     if demean:
-        data = demean_list(data,demean_index=demean_index)
+        data = demean_list(data, demean_index=demean_index)
 
     data = filter_nan_values(data)
 
@@ -2879,7 +2884,7 @@ def plot_box(
                 if p > p_value:
                     candidate_index = i
                     p_candidate = p  # save p-value associated with that index
-                #else:
+                # else:
                 #    break
             # Get y-axis limits
             y_min, y_max = ax.get_ylim()
@@ -2912,7 +2917,6 @@ def plot_box(
         if inset_y_range is not None:
             small_ax.set_ylim(inset_y_range)
 
-
     # set x-ticks
     # Set x-ticks every two positions
     xtick_positions = list(range(1, len(labels) + 1, 2))  # 1, 3, 5, ...
@@ -2922,11 +2926,11 @@ def plot_box(
     ax.set_xticklabels(xtick_labels)
 
     # Set title and axis labels
-    ax.set_title(title,fontsize=20)
+    ax.set_title(title, fontsize=20)
     ax.xaxis.set_tick_params(labelsize=15)
     ax.yaxis.set_tick_params(labelsize=15)
-    ax.set_xlabel(x_label,fontsize=20)
-    ax.set_ylabel(y_label,fontsize=20)
+    ax.set_xlabel(x_label, fontsize=20)
+    ax.set_ylabel(y_label, fontsize=20)
 
     # Save the figure if a filename has been pass
     if filename is not None:
