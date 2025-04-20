@@ -970,6 +970,12 @@ class BatchAnalysis:
                      filename=f'{plot_dir}/fo.svg'
                      )
 
+            plot_violin(fo.T,
+                     x_label="State",
+                     y_label="Fractional Occupancy",
+                     filename=f'{plot_dir}/fo_violin.svg'
+                     )
+
             # Mean lifetime
             lt = mean_lifetimes(stc,sampling_frequency)
             plot_box(lt.T.tolist(),
@@ -1029,6 +1035,11 @@ class BatchAnalysis:
                      y_label="Std alpha",
                      filename=f'{plot_dir}/std_norm_alpha.svg'
                      )
+            plot_violin(std_norm_alpha.T,
+                        x_label="Mode",
+                        y_label="Std alpha",
+                        filename=f'{plot_dir}/std_norm_alpha_violin.svg'
+                        )
 
         ### Compare against ground truth
         if ground_truth_dir is not None:
