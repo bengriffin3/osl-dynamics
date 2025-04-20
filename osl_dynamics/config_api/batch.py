@@ -1060,13 +1060,13 @@ class BatchAnalysis:
                 order, riem_reorder = hungarian_pair(riem, distance=True)
                 plot_mode_pairing(riem_reorder,
                                   order,
-                                  title=f'Riem distance',
+                                  #title=f'Riem distance',
                                   filename=f'{plot_dir}/riem_ground_truth.svg'
                                   )
                 order, cor_reorder = hungarian_pair(cor, distance=False)
                 plot_mode_pairing(cor_reorder,
                                   order,
-                                  title=f'Alpha correlation',
+                                  #title=f'Alpha correlation',
                                   filename=f'{plot_dir}/alpha_ground_truth.svg'
                                   )
             else:
