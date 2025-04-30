@@ -34,3 +34,4 @@ MANIFEST
 .venv*/
 examples/simulation/results_hmm_variants/
 examples/simulation/results_hmm_variants_with_noise/
+interactive.ipynb

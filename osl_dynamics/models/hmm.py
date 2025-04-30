@@ -630,7 +630,7 @@ class Model(ModelBase):
         # where E{.} denotes the expectation.
         phi_interim = np.sum(xi, axis=0).reshape(
             self.config.n_states, self.config.n_states
-        ).T / np.sum(gamma[:-1], axis=0).reshape(self.config.n_states, 1)
+        ).T / np.clip(np.sum(gamma[:-1], axis=0).reshape(self.config.n_states, 1),a_min=1e-8,a_max=None)
 
         # We use stochastic updates on trans_prob as per Eqs. (1) and (2) in the
         # paper:

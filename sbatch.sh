@@ -6,6 +6,7 @@
 # Account name and target partition 
 #SBATCH -A win.prj 
 #SBATCH -p short
+#SBATCH --mem-per-cpu=100G
 
 # Check whether the directory log is available. Create otherwise.
 #if [ ! -d "log" ]; then
@@ -27,7 +28,6 @@
 #   -N, --nodes 
 #   -n, --ntasks 
 #SBATCH -c 1 
-
 # Some useful data about the job to help with debugging 
 echo "------------------------------------------------" 
 echo "Slurm Job ID: $SLURM_JOB_ID"
@@ -40,12 +40,14 @@ echo "------------------------------------------------"
 
 # Load the environment
 module purge
-module load Anaconda3/2022.05
+module load Anaconda3/2024.02-1
 eval "$(conda shell.bash hook)"
 conda activate osld # Environment name
 
 # Begin writing your script here 
 
-python main.py $SLURM_ARRAY_TASK_ID
-
+#python main.py $SLURM_ARRAY_TASK_ID
+ulimit -n 20480
+python evaluate_main.py $SLURM_ARRAY_TASK_ID ./results_final/real/ICA_50_mean/config_HCP.yaml
+#python cross_validation.py $SLURM_ARRAY_TASK_ID
 # End of job script

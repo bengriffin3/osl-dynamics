@@ -8,6 +8,7 @@ from itertools import zip_longest
 
 import numpy as np
 import pandas as pd
+from scipy.stats import ttest_rel
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ from matplotlib.path import Path
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from nilearn.plotting import plot_markers
 
-from osl_dynamics.array_ops import get_one_hot, demean_list,filter_nan_values
+from osl_dynamics.array_ops import get_one_hot, demean_list, filter_nan_values
 from osl_dynamics.utils.misc import override_dict_defaults
 from osl_dynamics.utils.topoplots import Topology
 from osl_dynamics.utils.parcellation import Parcellation
@@ -1225,6 +1226,8 @@ def plot_epoched_time_series(
 def plot_matrices(
         matrix,
         group_color_scale=True,
+        v_min=None,
+        v_max=None,
         titles=None,
         main_title=None,
         cmap="viridis",
@@ -1244,6 +1247,10 @@ def plot_matrices(
     group_color_scale: bool, optional
         If True, all matrices will have the same colormap scale, where we use
         the minimum and maximum across all matrices as the scale.
+    v_min: float, optional
+        The minimal value for colorbar
+    v_max: float, optional
+        The maximal value for colorbar.
     titles: list of str, optional
         Titles to give to each matrix axis.
     main_title: str, optional
@@ -1285,8 +1292,10 @@ def plot_matrices(
             axis.remove()
             continue
         if group_color_scale:
-            v_min = np.nanmin(matrix)
-            v_max = np.nanmax(matrix)
+            if v_min is None:
+                v_min = np.nanmin(matrix)
+            if v_max is None:
+                v_max = np.nanmax(matrix)
             if log_norm:
                 im = axis.matshow(
                     grid,
@@ -2415,7 +2424,9 @@ def plot_mode_pairing(
 
     if fig_kwargs is None:
         fig_kwargs = {}
-    default_fig_kwargs = {"figsize": (8, 6),
+    fig_width = max(4, metrics.shape[1] + 1)
+    fig_height = max(4, metrics.shape[0])
+    default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
@@ -2442,8 +2453,11 @@ def plot_mode_pairing(
     ax = sns.heatmap(data=metrics, ax=ax, **sns_kwargs)
     # Set xticks and yticks
     if indices is not None:
-        ax.set_xticks(np.arange(len(indices["col"])) + 0.5, indices["col"], fontsize=18)
-        ax.set_yticks(np.arange(len(indices["row"])) + 0.5, indices["row"], fontsize=18)
+        ax.set_xticks(np.arange(len(indices["col"])) + 0.5, np.array(indices["col"]) + 1, fontsize=20)
+        ax.set_yticks(np.arange(len(indices["row"])) + 0.5, np.array(indices["row"]) + 1, fontsize=20)
+    else:
+        ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=20)
+        ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=20)
 
     # Set title and axis labels
     ax.set_title(title, fontsize=20)
@@ -2451,13 +2465,14 @@ def plot_mode_pairing(
     ax.set_ylabel(y_label, fontsize=20)
 
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=18)  # Set colorbar tick label font size
+    cbar.ax.tick_params(labelsize=20)  # Set colorbar tick label font size
 
     # Save the figure if a filename has been pass
     if filename is not None:
         save(fig, filename, tight_layout=True)
     elif create_fig:
         return fig, ax
+
 
 def plot_mode_no_pairing(
         metrics,
@@ -2513,7 +2528,9 @@ def plot_mode_no_pairing(
 
     if fig_kwargs is None:
         fig_kwargs = {}
-    default_fig_kwargs = {"figsize": (8, 6),
+    fig_width = max(4, metrics.shape[1] + 1)
+    fig_height = max(4, metrics.shape[0])
+    default_fig_kwargs = {"figsize": (fig_width, fig_height),
                           # "xtick.labelsize": 13,
                           # "ytick.labelsize": 13,
                           }
@@ -2539,8 +2556,8 @@ def plot_mode_no_pairing(
     # Create a heatmap of the correlation matrix
     ax = sns.heatmap(data=metrics, ax=ax, **sns_kwargs)
     # Set xticks and yticks
-    ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]), fontsize=18)
-    ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]), fontsize=18)
+    ax.set_xticks(np.arange(metrics.shape[1]) + 0.5, np.arange(metrics.shape[1]) + 1, fontsize=20)
+    ax.set_yticks(np.arange(metrics.shape[0]) + 0.5, np.arange(metrics.shape[0]) + 1, fontsize=20)
 
     # Set title and axis labels
     ax.set_title(title, fontsize=20)
@@ -2548,13 +2565,14 @@ def plot_mode_no_pairing(
     ax.set_ylabel(y_label, fontsize=20)
 
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=18)  # Set colorbar tick label font size
+    cbar.ax.tick_params(labelsize=20)  # Set colorbar tick label font size
 
     # Save the figure if a filename has been pass
     if filename is not None:
         save(fig, filename, tight_layout=True)
     elif create_fig:
         return fig, ax
+
 
 def plot_IC_distribution(
         spatial_map,
@@ -2698,10 +2716,12 @@ def plot_box(
         labels=None,
         plot_samples=True,
         mark_best=True,
+        p_value=None,
         demean=False,
         demean_index=0,
         inset_start_index=None,
         y_range=None,
+        inset_y_range=None,
         x_label=None,
         y_label=None,
         title=None,
@@ -2725,6 +2745,9 @@ def plot_box(
         Whether to plot the original samples
     mark_best: bool, optional
         Whether to mark the best performed model.
+    p_value: float, optional
+        Whether to mark the model with smallest number of states/modes
+        with no significant different difference to the best performed model.
     demean: bool, optional
         Whether to demean *across* the list
     demean_index: int, optional
@@ -2734,6 +2757,8 @@ def plot_box(
         starting from the index.
     y_range : list, optional
         Minimum and maximum for y-axis.
+    inset_y_range : list, optional
+        Minimum and maximum for inset y-axis.
     x_label : str, optional
         Label for x-axis.
     y_label : str, optional
@@ -2807,7 +2832,7 @@ def plot_box(
         fig, ax = create_figure(**fig_kwargs)
 
     if demean:
-        data = demean_list(data,demean_index=demean_index)
+        data = demean_list(data, demean_index=demean_index)
 
     data = filter_nan_values(data)
 
@@ -2843,6 +2868,41 @@ def plot_box(
         ax.text(max_median_index + 1, ax.get_ylim()[1], '*', **text_kwargs)
         # ax.text(max_median_index + 1, bp['caps'][max_median_index * 2 + 1].get_data()[1], '*', ha='center', va='bottom')
 
+        # If p_value threshold is given, find the smallest number of states
+        # that is NOT significantly worse than the best-performing model
+        if p_value is not None:
+            best_data = np.array(data[max_median_index])
+            candidate_index = max_median_index
+            p_candidate = None  # store the associated p-value for annotation
+
+            for i in range(max_median_index - 1, -1, -1):
+                current_data = np.array(data[i])
+                if len(best_data) != len(current_data):
+                    continue
+                t_stat, p = ttest_rel(best_data, current_data, alternative='greater')
+
+                if p > p_value:
+                    candidate_index = i
+                    p_candidate = p  # save p-value associated with that index
+                # else:
+                #    break
+            # Get y-axis limits
+            y_min, y_max = ax.get_ylim()
+            dagger_y = y_max * 0.96 if candidate_index == max_median_index else y_max
+            ax.text(candidate_index + 1, dagger_y, '†', **text_kwargs)
+
+            # If a simpler model was selected, add p-value slightly below the dagger
+            if candidate_index != max_median_index and p_candidate is not None:
+                p_text_y = dagger_y - 0.04 * (y_max - y_min)  # offset below dagger
+                ax.text(
+                    candidate_index + 1,
+                    p_text_y,
+                    f"p = {p_candidate:.2g}",
+                    fontsize='large',
+                    ha='center',
+                    va='top'
+                )
+
     if inset_start_index is not None:
         small_ax = fig.add_axes([0.65, 0.3, 0.3, 0.3])  # Adjust these values as needed for positioning
         small_bp = small_ax.boxplot(data[inset_start_index:], labels=labels[inset_start_index:], **plot_kwargs)
@@ -2853,19 +2913,24 @@ def plot_box(
         small_ax.set_xticks(inset_xtick_positions)
         small_ax.set_xticklabels([str(pos + inset_start_index) for pos in inset_xtick_positions], rotation=45)
 
+        # Set y-axis range for the inset plot
+        if inset_y_range is not None:
+            small_ax.set_ylim(inset_y_range)
 
     # set x-ticks
-    max_position = len(data)  # Maximum number of positions available for x-ticks
-    xtick_positions = list(range(xtick_step, max_position + 1, xtick_step))
+    # Set x-ticks every two positions
+    xtick_positions = list(range(1, len(labels) + 1, 2))  # 1, 3, 5, ...
+    xtick_labels = [labels[i] for i in range(0, len(labels), 2)]  # label0, label2, label4, ...
+
     ax.set_xticks(xtick_positions)
-    ax.set_xticklabels([str(pos) for pos in xtick_positions])
+    ax.set_xticklabels(xtick_labels)
 
     # Set title and axis labels
-    ax.set_title(title,fontsize=20)
+    ax.set_title(title, fontsize=20)
     ax.xaxis.set_tick_params(labelsize=15)
     ax.yaxis.set_tick_params(labelsize=15)
-    ax.set_xlabel(x_label,fontsize=20)
-    ax.set_ylabel(y_label,fontsize=20)
+    ax.set_xlabel(x_label, fontsize=20)
+    ax.set_ylabel(y_label, fontsize=20)
 
     # Save the figure if a filename has been pass
     if filename is not None:

@@ -13,16 +13,17 @@ from osl_dynamics.models import load
 from osl_dynamics.utils.plotting import plot_mode_pairing
 
 if __name__ == '__main__':
-    save_dir= './results_HCP_cv/'
-    N_states = list(range(2,37))
+    save_dir= './results_simulation_cv/sigma_0.1/'
+    N_states = list(range(2,17))
     index = int(sys.argv[1]) - 1
     N_state = N_states[index]
     N_splits = 10
-    data_dir = './data/node_timeseries/3T_HCP1200_MSMAll_d25_ts2/'
-    z_score_data = True
+    #data_dir = './data/node_timeseries/3T_HCP1200_MSMAll_d25_ts2/'
+    data_dir = './data/node_timeseries/simulation_202402/sigma_0.1/'
+    z_score_data = False
 
     dataset = Data(data_dir)
-    dataset.standardize()
+    #dataset.standardize()
     dataset.select(timepoints=[0, 1200])
 
     for N_split in range(1, N_splits + 1):

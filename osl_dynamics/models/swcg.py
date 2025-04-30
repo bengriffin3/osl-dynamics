@@ -101,8 +101,8 @@ class Config(BaseModelConfig):
     model_name: str = "SWCG"
 
     # Parameters for Sliding Window Correlation
-    window_length: int = None
-    window_offset: int = None
+    sequence_length: int = None
+    sequence_offset: int = None
 
     # Observation model parameters
     learn_means: bool = None
@@ -123,11 +123,7 @@ class Config(BaseModelConfig):
             self.initial_means = np.load(self.initial_means)
         if isinstance(self.initial_covariances,str):
             self.initial_covariances = np.load(self.initial_covariances)
-        if isinstance(self.initial_trans_prob,str):
-            if '.npy' in self.initial_trans_prob:
-                self.initial_trans_prob = np.load(self.initial_trans_prob)
         self.validate_observation_model_parameters()
-        self.validate_trans_prob_parameters()
         self.validate_dimension_parameters()
         self.validate_training_parameters()
 
@@ -155,11 +151,11 @@ class Config(BaseModelConfig):
 
 
 class Model(ModelBase):
-    """HMM class.
+    """SWCG class.
 
     Parameters
     ----------
-    config : osl_dynamics.models.hmm.Config
+    config : osl_dynamics.models.swcg.Config
     """
 
     config_type = Config
@@ -167,10 +163,6 @@ class Model(ModelBase):
     def build_model(self):
         """Builds a keras model."""
         self.model = _model_structure(self.config)
-
-        self.rho = 1
-        self.set_trans_prob(self.config.initial_trans_prob)
-        self.set_state_probs_t0(self.config.state_probs_t0)
 
     def fit(self, dataset, epochs=None, use_tqdm=False, verbose=1, **kwargs):
         """Fit model to a dataset.
@@ -891,44 +883,6 @@ class Model(ModelBase):
             observation_model_parameters[1],
             update_initializer=update_initializer,
         )
-
-    def set_trans_prob(self, trans_prob):
-        """Sets the transition probability matrix.
-
-        Parameters
-        ----------
-        trans_prob : np.ndarray or str
-            State transition probabilities. Shape must be (n_states, n_states).
-            trans_prob can be set as random, where it is sampled randomly.
-        """
-        if trans_prob is None:
-            trans_prob = (
-                np.ones((self.config.n_states, self.config.n_states))
-                * 0.1
-                / (self.config.n_states - 1)
-            )
-            np.fill_diagonal(trans_prob, 0.9)
-        elif isinstance(trans_prob,str):
-            if trans_prob == 'random':
-                trans_prob = np.random.rand(self.config.n_states, self.config.n_states)
-
-                # Divide each row by its sum to ensure rows sum to 1
-                trans_prob /= trans_prob.sum(axis=1, keepdims=True)
-
-        self.trans_prob = trans_prob
-
-    def set_state_probs_t0(self, state_probs_t0):
-        """Set the initial state probabilities.
-
-        Parameters
-        ----------
-        state_probs_t0 : np.ndarray
-            Initial state probabilities. Shape is (n_states,).
-        """
-
-        if state_probs_t0 is None:
-            state_probs_t0 = np.ones((self.config.n_states,)) / self.config.n_states
-        self.state_probs_t0 = state_probs_t0
 
     def set_random_state_time_course_initialization(self, training_data):
         """Sets the initial means/covariances based on a random state time

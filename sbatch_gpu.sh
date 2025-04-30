@@ -41,13 +41,14 @@ echo "------------------------------------------------"
 
 # Load the environment
 module purge
-module load Anaconda3/2022.05
+module load Anaconda3/2024.02-1
 module load cuDNN
 eval "$(conda shell.bash hook)"
 conda activate osld # Environment name
 
 # Begin writing your script here 
 
-python main.py $SLURM_ARRAY_TASK_ID
-
+#python main.py $SLURM_ARRAY_TASK_ID
+python evaluate_main.py $SLURM_ARRAY_TASK_ID ./results_final/simulation/hmm_iid/config_simulation.yaml
+#python cross_validation.py $SLURM_ARRAY_TASK_ID
 # End of job script

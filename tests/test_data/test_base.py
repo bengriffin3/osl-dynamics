@@ -317,3 +317,105 @@ def test_filter_session():
     for file in os.listdir(save_dir):
         os.remove(os.path.join(save_dir, file))
     os.rmdir(save_dir)
+
+def test_filter_gaussian_weighted_least_squares_straight_line_fitting():
+    """
+    This function aims to test the gaussian_weighted_least_squares_straight_line_fitting
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import os
+
+    save_dir = './test_filter_temp_1/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    sampling_frequency = 0.1
+
+    time_series = np.array([1.0,2.0,3.0,4.0,5.0,1.0,2.0,3.0,4.0,5.0])
+    time_series_save = np.column_stack((time_series, time_series))
+
+    # Save the combined time series for testing
+    np.savetxt(f'{save_dir}10001.txt', time_series_save)
+    np.savetxt(f'{save_dir}10002.txt', time_series_save)
+
+    data = Data(save_dir, sampling_frequency=sampling_frequency)
+
+    # Prepare with session input
+    prepare_with_session = {'filter': {'sigma': 40, 'session_length':5}}
+    data.prepare(prepare_with_session)
+    filtered_ts_with_session = np.squeeze(data.time_series()[0][:, 0])
+
+    answer = time_series - np.array([2.91948343,  2.95023502,  3.        ,  3.04976498,  3.08051657,
+                                     2.91948343,  2.95023502,  3.        ,  3.04976498,  3.08051657])
+
+    npt.assert_almost_equal(filtered_ts_with_session,answer)
+
+
+    # Clean up temporary files
+    for file in os.listdir(save_dir):
+        os.remove(os.path.join(save_dir, file))
+    os.rmdir(save_dir)
+
+    # Visual illustration
+    def generate_fmri_like_signal(length=400, sampling_frequency=1 / 0.72):
+        time = np.arange(length) / sampling_frequency  # Time vector
+        freq = np.fft.rfftfreq(length, d=1 / sampling_frequency)  # Frequency vector
+
+        # Generate random phases
+        phases = np.random.uniform(0, 2 * np.pi, len(freq))
+
+        # Create 1/f amplitude spectrum
+        amplitude = 1 / np.maximum(freq, 1)  # Avoid division by zero
+
+        # Construct Fourier coefficients
+        real_part = amplitude * np.cos(phases)
+        imag_part = amplitude * np.sin(phases)
+
+        # Create complex spectrum
+        spectrum = real_part + 1j * imag_part
+
+        # Perform inverse FFT to get time-domain signal
+        signal = np.fft.irfft(spectrum, n=length)
+
+        # Normalize to have zero mean and unit variance
+        signal = (signal - np.mean(signal)) / np.std(signal)
+
+        return time, signal
+
+    save_dir = './test_filter_temp_2/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    sampling_frequency = 1/0.72
+
+    # Generate the fMRI-like signal
+    time, signal = generate_fmri_like_signal(sampling_frequency=sampling_frequency)
+
+    time_series_save = np.column_stack((signal, signal))
+
+    # Save the combined time series for testing
+    np.savetxt(f'{save_dir}10001.txt', time_series_save)
+    np.savetxt(f'{save_dir}10002.txt', time_series_save)
+
+    data = Data(save_dir, sampling_frequency=sampling_frequency)
+
+    # Prepare with session input
+    prepare_with_session = {'filter': {'sigma': 50, 'session_length': 400}}
+    data.prepare(prepare_with_session)
+
+    filtered_ts_with_session = np.squeeze(data.time_series()[0][:, 0])
+
+
+
+    # Plot the signal
+    plt.figure(figsize=(10, 4))
+    plt.plot(time, signal, label='Simulated fMRI Signal', linewidth=1)
+    plt.plot(time,filtered_ts_with_session,label='After filtering',linewidth=1)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.title('Synthetic fMRI-like Time Series')
+    plt.legend()
+    plt.show()
+
+
