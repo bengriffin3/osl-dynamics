@@ -31,6 +31,10 @@ from ..utils.plotting import plot_box, plot_alpha, plot_violin, plot_mode_pairin
 from ..array_ops import cov2corr, first_eigenvector
 
 
+import numpy as np
+from scipy.stats import pearsonr
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import cdist
 
 
 class IndexParser:
@@ -1335,8 +1339,154 @@ class BatchAnalysis:
 
 
 
+    def _means_corr_matrix(self, A: np.ndarray, B: np.ndarray) -> np.ndarray:
+        """
+        Pearson correlation between state mean vectors.
+        A, B: (S, D)
+        Returns R: (S, S) with r(i,j) = corr(A[i], B[j]).
+        """
+        S = A.shape[0]
+        R = np.empty((S, S), dtype=float)
+        for i in range(S):
+            for j in range(S):
+                r, _ = pearsonr(A[i], B[j])
+                R[i, j] = r
+        return R
+
+    def _match_states_by_metric(self, A: np.ndarray, B: np.ndarray, metric: str,
+                                abs_corr: bool = True, zscore_per_feature: bool = False):
+        """
+        Returns indices (row_ind, col_ind) giving the best 1-1 matching between A and B.
+
+        metric:
+        - 'corr'      : maximize |corr| (or corr if abs_corr=False)
+        - 'euclidean' : minimize L2 distance (optionally z-scored per feature)
+        - 'cosine'    : maximize cosine similarity (optional, if you want it)
+        """
+        S, D = A.shape
+        assert B.shape == (S, D)
+
+        X, Y = A.copy(), B.copy()
+
+        if metric == 'euclidean' and zscore_per_feature:
+            # feature-wise z-score for scale-invariant Euclidean
+            for M in (X, Y):
+                mu, sd = M.mean(axis=0, keepdims=True), M.std(axis=0, keepdims=True)
+                sd[sd == 0] = 1.0
+                M -= mu
+                M /= sd
+
+        if metric == 'corr':
+            R = self._means_corr_matrix(X, Y)  # shape (S,S)
+            C = -np.abs(R) if abs_corr else -R  # maximize -> minimize negative
+            row_ind, col_ind = linear_sum_assignment(C)
+            scores = np.abs(R[row_ind, col_ind]) if abs_corr else R[row_ind, col_ind]
+            return row_ind, col_ind, scores
+
+        elif metric == 'euclidean':
+            Dmat = cdist(X, Y, metric="euclidean")  # shape (S,S)
+            row_ind, col_ind = linear_sum_assignment(Dmat)  # minimize distance
+            scores = Dmat[row_ind, col_ind]
+            return row_ind, col_ind, scores
+
+        elif metric == 'cosine':
+            # cosine distance = 1 - cosine_similarity
+            Dmat = cdist(X, Y, metric="cosine")
+            row_ind, col_ind = linear_sum_assignment(Dmat)
+            scores = 1.0 - Dmat[row_ind, col_ind]  # convert back to similarity
+            return row_ind, col_ind, scores
+
+        else:
+            raise ValueError(f"Unknown metric: {metric}")
 
 
 
 
 
+
+    def plot_split_half_reproducibility_means(
+        self,
+        metric: str = 'corr',          # 'corr' or 'euclidean' (or 'cosine')
+        abs_corr: bool = True,         # only used if metric='corr'
+        zscore_per_feature: bool = False,  # only used if metric='euclidean'
+        save_suffix: str = ""          # optional tag for filenames
+    ):
+        """
+        Split-half reproducibility based on state mean vectors.
+        For each config with 'split' in mode:
+        - load means for partition_1 and partition_2
+        - match states (Hungarian) using the chosen metric
+        - summarize reproducibility per split as the average matched score
+            (mean |r| for corr; mean L2 for euclidean; mean cosine similarity for cosine)
+        """
+        models = self.config_root['model'].keys()
+        n_states_list = self.config_root['n_states'].copy()
+        rep = {model: {str(int(num)): [] for num in n_states_list} for model in models}
+
+        rep_path = os.path.join(self.analysis_path, 'rep')
+        os.makedirs(rep_path, exist_ok=True)
+
+        for i in range(len(self.config_list)):
+            config = self.indexparser.parse(i)
+            model = next(iter(config['model']))
+            n_states = config['n_states'] if model != 'dynemo' else config['n_modes']
+            save_dir = config['save_dir']
+            mode = config['mode']
+
+            if 'split' not in mode:
+                continue
+
+            try:
+                m1 = np.load(f'{save_dir}/partition_1/inf_params/means.npy')  # (S,D)
+                m2 = np.load(f'{save_dir}/partition_2/inf_params/means.npy')  # (S,D)
+                assert m1.shape[0] == m2.shape[0] == int(n_states)
+
+                _, _, scores = self._match_states_by_metric(
+                    m1, m2, metric=metric, abs_corr=abs_corr, zscore_per_feature=zscore_per_feature
+                )
+
+                # summarize this split with the average over matched pairs
+                rep[model][str(int(n_states))].append(float(np.mean(scores)))
+
+            except Exception as e:
+                print(f'save_dir {save_dir} fails! ({e})')
+                rep[model][str(int(n_states))].append(np.nan)
+
+        # ---- Plotting ----
+        if metric == 'corr':
+            ylab = 'Average |corr| of matched state means' if abs_corr else 'Average corr of matched state means'
+            title = 'Reproducibility (means, correlation)'
+            fname_stub = f'{metric}_abs{int(abs_corr)}'
+        elif metric == 'euclidean':
+            ylab = 'Average Euclidean distance of matched state means'
+            title = 'Reproducibility (means, Euclidean)'
+            fname_stub = f'{metric}_z{int(zscore_per_feature)}'
+        else:
+            ylab = 'Average similarity of matched state means'
+            title = f'Reproducibility (means, {metric})'
+            fname_stub = metric
+
+        if save_suffix:
+            fname_stub = f'{fname_stub}_{save_suffix}'
+
+        for model in models:
+            temp_values = [rep[model][str(key)] for key in n_states_list]
+
+            plot_box(
+                data=temp_values,
+                labels=n_states_list,
+                mark_best=False,
+                demean=False,
+                x_label='N_states',
+                y_label=ylab,
+                title=title,
+                filename=os.path.join(self.analysis_path, f'{model}_reproducibility_means_{fname_stub}.svg')
+            )
+            plot_box(
+                data=temp_values,
+                labels=n_states_list,
+                x_label='N_states',
+                y_label=ylab,
+                title=title,
+                filename=os.path.join(self.analysis_path, f'{model}_reproducibility_means_{fname_stub}.pdf')
+            )

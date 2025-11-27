@@ -30,29 +30,39 @@ from osl_dynamics.utils.plotting import plot_line
 _logger = logging.getLogger("osl-dynamics")
 
 
+# def load_data(inputs, kwargs=None, prepare=None):
+#     """Load and prepare data.
+
+#     Parameters
+#     ----------
+#     inputs : str
+#         Path to directory containing :code:`npy` files.
+#     kwargs : dict, optional
+#         Keyword arguments to pass to the `Data <https://osl-dynamics\
+#         .readthedocs.io/en/latest/autoapi/osl_dynamics/data/index.html\
+#         #osl_dynamics.data.Data>`_ class. Useful keyword arguments to pass are
+#         :code:`sampling_frequency`, :code:`mask_file` and
+#         :code:`parcellation_file`.
+#     prepare : dict, optional
+#         Methods dict to pass to the prepare method. See docstring for
+#         `Data <https://osl-dynamics.readthedocs.io/en/latest/autoapi\
+#         /osl_dynamics/data/index.html#osl_dynamics.data.Data>`_.prepare.
+
+#     Returns
+#     -------
+#     data : osl_dynamics.data.Data
+#         Data object.
+#     """
+#     from osl_dynamics.data import Data
+
+#     kwargs = {} if kwargs is None else kwargs
+#     prepare = {} if prepare is None else prepare
+
+#     data = Data(inputs, **kwargs)
+#     data.prepare(prepare)
+#     return data
+
 def load_data(inputs, kwargs=None, prepare=None):
-    """Load and prepare data.
-
-    Parameters
-    ----------
-    inputs : str
-        Path to directory containing :code:`npy` files.
-    kwargs : dict, optional
-        Keyword arguments to pass to the `Data <https://osl-dynamics\
-        .readthedocs.io/en/latest/autoapi/osl_dynamics/data/index.html\
-        #osl_dynamics.data.Data>`_ class. Useful keyword arguments to pass are
-        :code:`sampling_frequency`, :code:`mask_file` and
-        :code:`parcellation_file`.
-    prepare : dict, optional
-        Methods dict to pass to the prepare method. See docstring for
-        `Data <https://osl-dynamics.readthedocs.io/en/latest/autoapi\
-        /osl_dynamics/data/index.html#osl_dynamics.data.Data>`_.prepare.
-
-    Returns
-    -------
-    data : osl_dynamics.data.Data
-        Data object.
-    """
     from osl_dynamics.data import Data
 
     kwargs = {} if kwargs is None else kwargs
@@ -60,7 +70,356 @@ def load_data(inputs, kwargs=None, prepare=None):
 
     data = Data(inputs, **kwargs)
     data.prepare(prepare)
+
+    # --- NEW: remember exactly which channels were selected in this fold/run ---
+    try:
+        sel = prepare.get("select", {}).get("channels", None)
+        if sel is not None:
+            # store as a numpy int array for downstream use
+            import numpy as np
+            data.selected_channels = np.array(sel, dtype=int)
+            _logger.info(f"Recorded selected channels on Data: len={len(data.selected_channels)}")
+    except Exception as e:
+        _logger.warning(f"Could not record selected channels on Data: {e}")
+    # ---------------------------------------------------------------------------
+
     return data
+
+
+
+# def build_hmm(
+#         data,
+#         output_dir,
+#         config_kwargs,
+# ):
+#     """Build up a `Hidden Markov Model <https://osl-dynamics.readthedocs.io/en\
+#        /latest/autoapi/osl_dynamics/models/hmm/index.html>`_.
+
+#        This function will:
+
+#        1. Build an :code:`hmm.Model` object.
+#        2. Save the model in :code:`<output_dir>/model`
+
+#        This function will create two directories:
+
+#        - :code:`<output_dir>/model`, which contains the model.
+
+#        Parameters
+#        ----------
+#        data : osl_dynamics.data.Data
+#            Data object. Serves as a place holder.
+#        output_dir : str
+#            Path to output directory.
+#        config_kwargs : dict
+#            Keyword arguments to pass to `hmm.Config <https://osl-dynamics\
+#            .readthedocs.io/en/latest/autoapi/osl_dynamics/models/hmm/index.html\
+#            #osl_dynamics.models.hmm.Config>`_. Defaults to::
+
+#                {'sequence_length': 2000,
+#                 'batch_size': 32,
+#                 'learning_rate': 0.01,
+#                 'n_epochs': 20}.
+#     """
+
+#     from osl_dynamics.models import hmm
+#     # Directories
+#     model_dir = output_dir + "/model"
+
+#     # Create the model object
+#     _logger.info("Building model")
+#     default_config_kwargs = {
+#         "n_channels": data.n_channels,
+#         "sequence_length": 2000,
+#         "batch_size": 32,
+#         "learning_rate": 0.01,
+#         "n_epochs": 20,
+#     }
+#     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
+#     _logger.info(f"Using config_kwargs: {config_kwargs}")
+
+#     ######################################################################################
+
+#     # --- Inject per-state initial covariances using the exact channels selected in load_data ---
+#     init_cov = config_kwargs.get("initial_covariances", None)
+#     K = int(config_kwargs.get("n_states", 0))
+#     C = int(config_kwargs.get("n_channels", data.n_channels))
+#     diag = bool(config_kwargs.get("diagonal_covariances", False))
+
+#     if isinstance(init_cov, str):
+#         arr = np.load(init_cov)
+
+#         if arr.ndim == 2 and arr.shape[0] == arr.shape[1]:
+#             # Case A: full FC (D,D) -> slice to (C,C) using selected channels, then tile
+#             if not hasattr(data, "selected_channels"):
+#                 raise RuntimeError("[*] Data.selected_channels not found; needed to slice full FC.")
+#             chan_idx = np.array(data.selected_channels, dtype=int).ravel()
+#             if chan_idx.size != C:
+#                 raise RuntimeError(f"[*] selected_channels has {chan_idx.size} entries but n_channels={C}.")
+
+#             R = arr[np.ix_(chan_idx, chan_idx)]
+#             R = (R + R.T) / 2.0
+#             np.fill_diagonal(R, 1.0)
+#             R = R + np.eye(C) * 1e-6
+
+#             if diag:
+#                 variances = np.diag(R).astype(np.float32)
+#                 init_cov_arr = np.tile(variances[None, :], (K, 1))            # (K, C)
+#             else:
+#                 init_cov_arr = np.tile(R[None, :, :], (K, 1, 1)).astype(np.float32)  # (K, C, C)
+
+#             config_kwargs["initial_covariances"] = init_cov_arr
+
+#         elif arr.ndim == 3 and arr.shape == (K, C, C):
+#             # Case B: already (K,C,C) -> use as is
+#             config_kwargs["initial_covariances"] = arr.astype(np.float32, copy=False)
+
+#         elif arr.ndim == 2 and arr.shape == (K, C) and diag:
+#             # Case C: already (K,C) variances for diagonal model
+#             config_kwargs["initial_covariances"] = arr.astype(np.float32, copy=False)
+
+#         else:
+#             raise ValueError(
+#                 f"initial_covariances at {init_cov} has unexpected shape {arr.shape} "
+#                 f"for K={K}, C={C}, diagonal={diag}."
+#             )
+
+#     elif isinstance(init_cov, np.ndarray):
+#         # Validate ndarray provided directly
+#         expected = (K, C) if diag else (K, C, C)
+#         if init_cov.shape != expected:
+#             raise ValueError(f"initial_covariances array has shape {init_cov.shape} but expected {expected}")
+#         config_kwargs["initial_covariances"] = init_cov.astype(np.float32, copy=False)
+
+#     # --- end injection ---
+
+#     ######################################################################################
+
+
+#     config = hmm.Config(**config_kwargs)
+#     model = hmm.Model(config)
+#     # Save trained model
+#     _logger.info(f"Saving model to: {model_dir}")
+#     model.save(model_dir)
+
+# def build_hmm(
+#         data,
+#         output_dir,
+#         config_kwargs,
+# ):
+#     """Build up an OSL-Dynamics HMM Model and save it to <output_dir>/model.
+
+#     If config_kwargs["initial_covariances"] == "static_fc":
+#       compute static covariance from prepared data on-the-fly,
+#       replicate across K states (diagonal or full), inject, then build & save.
+#     """
+#     from osl_dynamics.models import hmm
+#     from osl_dynamics.array_ops import estimate_gaussian_distribution
+
+#     model_dir = output_dir + "/model"
+
+#     _logger.info("Building model")
+#     default_config_kwargs = {
+#         "n_channels": data.n_channels,
+#         "sequence_length": 2000,
+#         "batch_size": 32,
+#         "learning_rate": 0.01,
+#         "n_epochs": 20,
+#     }
+#     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
+#     _logger.info(f"Using config_kwargs: {config_kwargs}")
+
+#     # --- initial_covariances injection ---
+#     init_cov = config_kwargs.get("initial_covariances", None)
+#     K = int(config_kwargs.get("n_states", 0))
+#     C_cfg = int(config_kwargs.get("n_channels", data.n_channels))
+#     diag = bool(config_kwargs.get("diagonal_covariances", False))
+
+#     if isinstance(init_cov, str) and init_cov == "static_fc":
+#         _logger.info("[static_fc] Computing static covariance on-the-fly from prepared data.")
+#         ts = data.time_series(prepared=True, concatenate=False)
+#         ts = [ts[i] for i in getattr(data, "keep", range(len(ts)))]
+#         ts = np.concatenate(ts, axis=0)  # (T_total, C_actual)
+#         _logger.info(f"[dbg] static_fc ts shape={ts.shape}, dtype={ts.dtype}")
+
+#         means_s, covs_s = estimate_gaussian_distribution(
+#             ts, nonzero_means=config_kwargs.get("learn_means", False)
+#         )
+#         covs_s = np.asarray(covs_s)
+#         # Handle batched (1,C,C) output
+#         if covs_s.ndim == 3 and covs_s.shape[0] == 1:
+#             covs_s = covs_s[0]
+#         elif covs_s.ndim != 2:
+#             raise ValueError(f"[static_fc] Unexpected covs_s shape: {covs_s.shape}")
+
+#         C_actual = covs_s.shape[0]
+#         if C_actual != C_cfg:
+#             _logger.warning(f"[static_fc] n_channels mismatch: covs={C_actual} vs config={C_cfg}. "
+#                             f"Using C_actual={C_actual}.")
+#             config_kwargs["n_channels"] = C_actual  # keep model consistent
+
+#         # symmetrize + jitter
+#         covs_s = (covs_s + covs_s.T) / 2.0
+#         covs_s = covs_s.astype(np.float32, copy=False)
+#         covs_s += np.eye(C_actual, dtype=np.float32) * 1e-6
+
+#         if diag:
+#             variances = np.diag(covs_s).astype(np.float32)           # (C_actual,)
+#             init_cov_arr = np.repeat(variances[None, :], max(K, 1), axis=0)   # (K, C_actual)
+#         else:
+#             init_cov_arr = np.repeat(covs_s[None, :, :], max(K, 1), axis=0)   # (K, C_actual, C_actual)
+
+#         config_kwargs["initial_covariances"] = init_cov_arr
+#         _logger.info(f"[static_fc] Injected initial_covariances shape={init_cov_arr.shape} "
+#                      f"(expected {(K, C_actual) if diag else (K, C_actual, C_actual)})")
+
+#     elif isinstance(init_cov, np.ndarray):
+#         expected = (K, C_cfg) if diag else (K, C_cfg, C_cfg)
+#         if init_cov.shape != expected:
+#             raise ValueError(f"initial_covariances array has shape {init_cov.shape} but expected {expected}")
+#         config_kwargs["initial_covariances"] = init_cov.astype(np.float32, copy=False)
+
+#     # --- build & save ---
+#     config = hmm.Config(**config_kwargs)
+#     model = hmm.Model(config)
+#     _logger.info(f"Saving model to: {model_dir}")
+#     model.save(model_dir)
+
+
+# def build_hmm(
+#         data,
+#         output_dir,
+#         config_kwargs,
+# ):
+#     """
+#     Build an OSL-Dynamics HMM Model and save it to <output_dir>/model.
+
+#     Behaviour:
+#       1. If n_states == 1:
+#            → Compute and save static Gaussian (means & covs) to inf_params.
+#              Also saves static_cov.npy under debug/.
+#       2. If n_states > 1 and initial_covariances == "static_fc":
+#            → Compute static FC (same estimator as Mode 1).
+#            → Use it as the *initializer passed into the model*:
+#                 - diagonal_covariances=True  -> K×C variances from diag(static FC)
+#                 - otherwise (full)           -> K×C×C static FC replicated across states
+#            → Build and save the HMM model with that initializer.
+#       3. If n_states > 1 and no 'initial_covariances':
+#            → Build and save the HMM model directly.
+#     """
+#     from osl_dynamics.models import hmm
+#     from osl_dynamics.array_ops import estimate_gaussian_distribution
+
+#     # -------------------------------------------------------------------------
+#     # Setup
+#     # -------------------------------------------------------------------------
+#     model_dir = os.path.join(output_dir, "model")
+#     debug_dir = os.path.join(output_dir, "debug")
+#     inf_params_dir = os.path.join(output_dir, "inf_params")
+#     os.makedirs(debug_dir, exist_ok=True)
+#     os.makedirs(inf_params_dir, exist_ok=True)
+
+#     _logger.info("Building HMM configuration.")
+#     default_config_kwargs = {
+#         "n_channels": data.n_channels,
+#         "sequence_length": 2000,
+#         "batch_size": 32,
+#         "learning_rate": 0.01,
+#         "n_epochs": 20,
+#     }
+#     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
+
+#     K = int(config_kwargs.get("n_states", 0))
+#     C_cfg = int(config_kwargs.get("n_channels", data.n_channels))
+#     diag = bool(config_kwargs.get("diagonal_covariances", False))
+#     init_cov_mode = config_kwargs.get("initial_covariances", None)
+
+#     _logger.info(f"[dbg] Config: K={K}, C={C_cfg}, diag={diag}, init_cov={init_cov_mode!r}")
+
+#     # -------------------------------------------------------------------------
+#     # Case 1: n_states == 1 → compute static FC and save means/covs
+#     # -------------------------------------------------------------------------
+#     if K == 1:
+#         _logger.info("[mode 1] n_states=1 → computing static means/covs (no HMM model).")
+
+#         ts = data.time_series(prepared=True, concatenate=False)
+#         ts = [ts[i] for i in getattr(data, "keep", range(len(ts)))]
+#         ts = np.concatenate(ts, axis=0)
+
+#         means, covs = estimate_gaussian_distribution(
+#             ts, nonzero_means=bool(config_kwargs.get("learn_means", False))
+#         )
+
+#         covs = np.asarray(covs)
+#         if covs.ndim == 3 and covs.shape[0] == 1:
+#             covs = covs[0]
+#         elif covs.ndim != 2:
+#             raise ValueError(f"[static] Unexpected covs shape: {covs.shape}")
+
+#         covs = ((covs + covs.T) / 2.0).astype(np.float32, copy=False)
+
+#         # Save everything needed for downstream
+#         save(os.path.join(inf_params_dir, "means.npy"), means)
+#         save(os.path.join(inf_params_dir, "covs.npy"), covs)
+#         np.save(os.path.join(debug_dir, "static_cov.npy"), covs)
+
+#         _logger.info(f"[static] Saved means.npy (shape {np.asarray(means).shape}) "
+#                      f"and covs.npy (shape {covs.shape}) to {inf_params_dir}")
+#         _logger.info(f"[static] First 5×5 block:\n{covs[:5, :5]}")
+#         return
+
+#     # -------------------------------------------------------------------------
+#     # Case 2: n_states > 1 and initial_covariances == "static_fc"
+#     # -------------------------------------------------------------------------
+#     if isinstance(init_cov_mode, str) and init_cov_mode == "static_fc":
+#         _logger.info("[mode 2] Multi-state + 'static_fc' → compute static FC and USE as initializer.")
+
+#         ts_train = data.time_series(prepared=True, concatenate=False)
+#         ts_train = [ts_train[i] for i in getattr(data, "keep", range(len(ts_train)))]
+#         ts_train = np.concatenate(ts_train, axis=0)
+
+#         # Same estimator as Mode 1; means flag mirrors learn_means
+#         _, cov_static = estimate_gaussian_distribution(
+#             ts_train, nonzero_means=bool(config_kwargs.get("learn_means", False))
+#         )
+#         cov_static = np.asarray(cov_static)
+#         if cov_static.ndim == 3 and cov_static.shape[0] == 1:
+#             cov_static = cov_static[0]
+#         elif cov_static.ndim != 2:
+#             raise ValueError(f"[static] Unexpected cov_static shape: {cov_static.shape}")
+
+#         cov_static = ((cov_static + cov_static.T) / 2.0).astype(np.float32, copy=False)
+#         np.save(os.path.join(debug_dir, "static_cov.npy"), cov_static)
+#         _logger.info(f"[static] Computed static FC, shape={cov_static.shape}")
+#         _logger.info(f"[static] First 5×5 block:\n{cov_static[:5, :5]}")
+
+#         # Build initializer expected by OSL (diag vs full)
+#         if diag:
+#             variances = np.diag(cov_static).astype(np.float32)         # (C,)
+#             init_cov_arr = np.repeat(variances[None, :], K, axis=0)    # (K, C)
+#         else:
+#             init_cov_arr = np.repeat(cov_static[None, :, :], K, axis=0).astype(np.float32)  # (K, C, C)
+
+#         # Replace the "static_fc" string with the actual array initializer
+#         cfg = dict(config_kwargs)  # shallow copy
+#         cfg["initial_covariances"] = init_cov_arr
+
+#         _logger.info(f"[mode 2] Initializer shape set to {init_cov_arr.shape}; building & saving model.")
+#         config = hmm.Config(**cfg)
+#         model = hmm.Model(config)
+#         model.save(model_dir)
+#         _logger.info(f"[build] Model saved to {model_dir}")
+#         return
+
+#     # -------------------------------------------------------------------------
+#     # Case 3: n_states > 1 and no 'static_fc' usage
+#     # -------------------------------------------------------------------------
+#     _logger.info("[mode 3] Standard HMM model build (no static FC used).")
+
+#     config = hmm.Config(**config_kwargs)
+#     model = hmm.Model(config)
+#     model.save(model_dir)
+#     _logger.info(f"[build] Model saved to {model_dir}")
+#     return
 
 
 def build_hmm(
@@ -68,41 +427,30 @@ def build_hmm(
         output_dir,
         config_kwargs,
 ):
-    """Build up a `Hidden Markov Model <https://osl-dynamics.readthedocs.io/en\
-       /latest/autoapi/osl_dynamics/models/hmm/index.html>`_.
-
-       This function will:
-
-       1. Build an :code:`hmm.Model` object.
-       2. Save the model in :code:`<output_dir>/model`
-
-       This function will create two directories:
-
-       - :code:`<output_dir>/model`, which contains the model.
-
-       Parameters
-       ----------
-       data : osl_dynamics.data.Data
-           Data object. Serves as a place holder.
-       output_dir : str
-           Path to output directory.
-       config_kwargs : dict
-           Keyword arguments to pass to `hmm.Config <https://osl-dynamics\
-           .readthedocs.io/en/latest/autoapi/osl_dynamics/models/hmm/index.html\
-           #osl_dynamics.models.hmm.Config>`_. Defaults to::
-
-               {'sequence_length': 2000,
-                'batch_size': 32,
-                'learning_rate': 0.01,
-                'n_epochs': 20}.
     """
+    Build an OSL-Dynamics HMM Model and save it to <output_dir>/model.
 
+    Behaviour:
+      1. n_states == 1  -> compute & save static Gaussian (means/covs).
+      2. n_states > 1 and initial_covariances == "static_fc"
+         -> compute static FC once and use it as initializer (diag/full).
+      3. n_states > 1 and no 'initial_covariances' -> standard build.
+    """
+    import os
+    import numpy as np
     from osl_dynamics.models import hmm
-    # Directories
-    model_dir = output_dir + "/model"
+    from osl_dynamics.array_ops import estimate_gaussian_distribution
 
-    # Create the model object
-    _logger.info("Building model")
+    # -------------------------------------------------------------------------
+    # Setup
+    # -------------------------------------------------------------------------
+    model_dir = os.path.join(output_dir, "model")
+    debug_dir = os.path.join(output_dir, "debug")
+    inf_params_dir = os.path.join(output_dir, "inf_params")
+    os.makedirs(debug_dir, exist_ok=True)
+    os.makedirs(inf_params_dir, exist_ok=True)
+
+    _logger.info("Building HMM configuration.")
     default_config_kwargs = {
         "n_channels": data.n_channels,
         "sequence_length": 2000,
@@ -111,12 +459,137 @@ def build_hmm(
         "n_epochs": 20,
     }
     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
-    _logger.info(f"Using config_kwargs: {config_kwargs}")
+
+    K = int(config_kwargs.get("n_states", 0))
+    C_cfg = int(config_kwargs.get("n_channels", data.n_channels))
+    diag = bool(config_kwargs.get("diagonal_covariances", False))
+    init_cov_mode = config_kwargs.get("initial_covariances", None)
+
+    _logger.info(f"[dbg] Config: K={K}, C={C_cfg}, diag={diag}, init_cov={init_cov_mode!r}")
+
+    # -------------------------------------------------------------------------
+    # Case 1: n_states == 1 → compute static FC and save means/covs
+    # -------------------------------------------------------------------------
+    if K == 1:
+        _logger.info("[mode 1] n_states=1 → computing static means/covs (no HMM model).")
+
+        ts = data.time_series(prepared=True, concatenate=False)
+        ts = [ts[i] for i in getattr(data, "keep", range(len(ts)))]
+        ts = np.concatenate(ts, axis=0)
+
+        means, covs = estimate_gaussian_distribution(
+            ts, nonzero_means=bool(config_kwargs.get("learn_means", False))
+        )
+
+        covs = np.asarray(covs)
+        if covs.ndim == 3 and covs.shape[0] == 1:
+            covs = covs[0]
+        elif covs.ndim != 2:
+            raise ValueError(f"[static] Unexpected covs shape: {covs.shape}")
+
+        covs = ((covs + covs.T) / 2.0).astype(np.float32, copy=False)
+
+        save(os.path.join(inf_params_dir, "means.npy"), means)
+        save(os.path.join(inf_params_dir, "covs.npy"), covs)
+        np.save(os.path.join(debug_dir, "static_cov.npy"), covs)
+
+        _logger.info(f"[static] Saved means.npy (shape {np.asarray(means).shape}) "
+                     f"and covs.npy (shape {covs.shape}) to {inf_params_dir}")
+        _logger.info(f"[static] First 5×5 block:\n{covs[:5, :5]}")
+        return
+
+    # Small helper to normalise initial_trans_prob *before* building Config
+    def _normalise_initial_trans_prob(cfg_dict: dict, where: str):
+        ip = cfg_dict.get("initial_trans_prob", None)
+        if isinstance(ip, list):
+            ip_arr = np.array(ip, dtype=float)
+            cfg_dict["initial_trans_prob"] = ip_arr
+            _logger.info(f"[{where}] Converted initial_trans_prob list→ndarray shape={ip_arr.shape}")
+        elif isinstance(ip, np.ndarray):
+            _logger.info(f"[{where}] initial_trans_prob ndarray shape={ip.shape}")
+        elif isinstance(ip, str):  # e.g., "random"
+            _logger.info(f"[{where}] initial_trans_prob='{ip}'")
+            return
+        elif ip is None:
+            _logger.info(f"[{where}] initial_trans_prob not provided (defaults apply)")
+            return
+
+        # Validate shape if ndarray was provided/created
+        ip_now = cfg_dict.get("initial_trans_prob", None)
+        if isinstance(ip_now, np.ndarray):
+            if ip_now.ndim != 2 or ip_now.shape != (K, K):
+                raise ValueError(
+                    f"[{where}] initial_trans_prob must be shape (K,K)={(K,K)}, got {ip_now.shape}"
+                )
+
+    # If someone passes initial means/covs as lists, turn into arrays (paths are fine)
+    def _normalise_init_params(cfg_dict: dict, where: str):
+        for key in ("initial_means", "initial_covariances"):
+            val = cfg_dict.get(key, None)
+            if isinstance(val, list):
+                cfg_dict[key] = np.array(val)
+                _logger.info(f"[{where}] Converted {key} list→ndarray shape={cfg_dict[key].shape}")
+
+    # -------------------------------------------------------------------------
+    # Case 2: n_states > 1 and initial_covariances == "static_fc"
+    # -------------------------------------------------------------------------
+    if isinstance(init_cov_mode, str) and init_cov_mode == "static_fc":
+        _logger.info("[mode 2] Multi-state + 'static_fc' → compute static FC and USE as initializer.")
+
+        ts_train = data.time_series(prepared=True, concatenate=False)
+        ts_train = [ts_train[i] for i in getattr(data, "keep", range(len(ts_train)))]
+        ts_train = np.concatenate(ts_train, axis=0)
+
+        _, cov_static = estimate_gaussian_distribution(
+            ts_train, nonzero_means=bool(config_kwargs.get("learn_means", False))
+        )
+        cov_static = np.asarray(cov_static)
+        if cov_static.ndim == 3 and cov_static.shape[0] == 1:
+            cov_static = cov_static[0]
+        elif cov_static.ndim != 2:
+            raise ValueError(f"[static] Unexpected cov_static shape: {cov_static.shape}")
+
+        cov_static = ((cov_static + cov_static.T) / 2.0).astype(np.float32, copy=False)
+        np.save(os.path.join(debug_dir, "static_cov.npy"), cov_static)
+        _logger.info(f"[static] Computed static FC, shape={cov_static.shape}")
+        _logger.info(f"[static] First 5×5 block:\n{cov_static[:5, :5]}")
+
+        # Build initializer (diag vs full)
+        if diag:
+            variances = np.diag(cov_static).astype(np.float32)         # (C,)
+            init_cov_arr = np.repeat(variances[None, :], K, axis=0)    # (K, C)
+        else:
+            init_cov_arr = np.repeat(cov_static[None, :, :], K, axis=0).astype(np.float32)  # (K,C,C)
+
+        cfg = dict(config_kwargs)  # shallow copy so we don't mutate caller state
+        cfg["initial_covariances"] = init_cov_arr
+
+        # NEW: normalise ip + any list init params before Config()
+        _normalise_initial_trans_prob(cfg, where="build_hmm/mode2")
+        _normalise_init_params(cfg, where="build_hmm/mode2")
+
+        _logger.info(f"[mode 2] Initializer shape set to {init_cov_arr.shape}; building & saving model.")
+        config = hmm.Config(**cfg)
+        model = hmm.Model(config)
+        model.save(model_dir)
+        _logger.info(f"[build] Model saved to {model_dir}")
+        return
+
+    # -------------------------------------------------------------------------
+    # Case 3: n_states > 1 and no 'static_fc' usage
+    # -------------------------------------------------------------------------
+    _logger.info("[mode 3] Standard HMM model build (no static FC used).")
+
+    # NEW: normalise ip + any list init params before Config()
+    _normalise_initial_trans_prob(config_kwargs, where="build_hmm/mode3")
+    _normalise_init_params(config_kwargs, where="build_hmm/mode3")
+
     config = hmm.Config(**config_kwargs)
     model = hmm.Model(config)
-    # Save trained model
-    _logger.info(f"Saving model to: {model_dir}")
     model.save(model_dir)
+    _logger.info(f"[build] Model saved to {model_dir}")
+    return
+
 
 def build_dynemo(
         data,
@@ -464,6 +937,433 @@ def train_swc_log_likelihood(
     return f'{output_dir}/metrics.json'
 '''
 
+# def train_hmm(
+#         data,
+#         output_dir,
+#         config_kwargs,
+#         init_kwargs=None,
+#         infer_spatial='sample',
+#         fit_kwargs=None,
+#         save_inf_params=True,
+#         calculate_free_energy=True
+# ):
+#     """Train a `Hidden Markov Model <https://osl-dynamics.readthedocs.io/en\
+#     /latest/autoapi/osl_dynamics/models/hmm/index.html>`_.
+
+#     This function will:
+
+#     1. Build an :code:`hmm.Model` object.
+#     2. Initialize the parameters of the model using
+#        :code:`Model.random_state_time_course_initialization`.
+#     3. Perform full training.
+#     4. Save the inferred parameters (state probabilities, means and covariances)
+#        if :code:`save_inf_params=True`.
+
+#     This function will create two directories:
+
+#     - :code:`<output_dir>/model`, which contains the trained model.
+#     - :code:`<output_dir>/inf_params`, which contains the inferred parameters.
+#       This directory is only created if :code:`save_inf_params=True`.
+#     - :code:`<output_dir>/metrics`, which contains the free energy on the training data.
+#       This directory is only created if :code:`calculate_free_energy=True`.
+
+#     Parameters
+#     ----------
+#     data : osl_dynamics.data.Data
+#         Data object for training the model.
+#     output_dir : str
+#         Path to output directory.
+#     config_kwargs : dict
+#         Keyword arguments to pass to `hmm.Config <https://osl-dynamics\
+#         .readthedocs.io/en/latest/autoapi/osl_dynamics/models/hmm/index.html\
+#         #osl_dynamics.models.hmm.Config>`_. Defaults to::
+
+#             {'sequence_length': 2000,
+#              'batch_size': 32,
+#              'learning_rate': 0.01,
+#              'n_epochs': 20}.
+#     init_kwargs : dict, optional
+#         Keyword arguments to pass to
+#         :code:`Model.random_state_time_course_initialization`. Defaults to::
+
+#             {'n_init': 3, 'n_epochs': 1}.
+#     fit_kwargs : dict, optional
+#         Keyword arguments to pass to the :code:`Model.fit`. No defaults.
+#     save_inf_params : bool, optional
+#         Should we save the inferred parameters?
+#     """
+#     if data is None:
+#         raise ValueError("data must be passed.")
+
+#     from osl_dynamics.models import hmm
+
+#     init_kwargs = {} if init_kwargs is None else init_kwargs
+#     fit_kwargs = {} if fit_kwargs is None else fit_kwargs
+
+#     # Directories
+#     model_dir = output_dir + "/model"
+
+#     # Create the model object
+#     _logger.info("Building model")
+#     default_config_kwargs = {
+#         "n_channels": data.n_channels,
+#         "sequence_length": 2000,
+#         "batch_size": 32,
+#         "learning_rate": 0.01,
+#         "n_epochs": 20,
+#     }
+#     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
+#     _logger.info(f"Using config_kwargs: {config_kwargs}")
+
+#     #################################################################################################
+    
+#     # --- Inject per-state initial covariances using the exact channels selected in load_data ---
+#     init_cov = config_kwargs.get("initial_covariances", None)
+#     K = int(config_kwargs.get("n_states", 0))
+#     C = int(config_kwargs.get("n_channels", data.n_channels))
+#     diag = bool(config_kwargs.get("diagonal_covariances", False))
+
+#     if isinstance(init_cov, str):
+#         arr = np.load(init_cov)
+
+#         if arr.ndim == 2 and arr.shape[0] == arr.shape[1]:
+#             # Case A: full FC (D,D) -> slice to (C,C) using selected channels, then tile
+#             if not hasattr(data, "selected_channels"):
+#                 raise RuntimeError("[*] Data.selected_channels not found; needed to slice full FC.")
+#             chan_idx = np.array(data.selected_channels, dtype=int).ravel()
+#             if chan_idx.size != C:
+#                 raise RuntimeError(f"[*] selected_channels has {chan_idx.size} entries but n_channels={C}.")
+
+#             R = arr[np.ix_(chan_idx, chan_idx)]
+#             R = (R + R.T) / 2.0
+#             np.fill_diagonal(R, 1.0)
+#             R = R + np.eye(C) * 1e-6
+
+#             if diag:
+#                 variances = np.diag(R).astype(np.float32)
+#                 init_cov_arr = np.tile(variances[None, :], (K, 1))            # (K, C)
+#             else:
+#                 init_cov_arr = np.tile(R[None, :, :], (K, 1, 1)).astype(np.float32)  # (K, C, C)
+
+#             config_kwargs["initial_covariances"] = init_cov_arr
+
+#         elif arr.ndim == 3 and arr.shape == (K, C, C):
+#             # Case B: already (K,C,C) -> use as is
+#             config_kwargs["initial_covariances"] = arr.astype(np.float32, copy=False)
+
+#         elif arr.ndim == 2 and arr.shape == (K, C) and diag:
+#             # Case C: already (K,C) variances for diagonal model
+#             config_kwargs["initial_covariances"] = arr.astype(np.float32, copy=False)
+
+#         else:
+#             raise ValueError(
+#                 f"initial_covariances at {init_cov} has unexpected shape {arr.shape} "
+#                 f"for K={K}, C={C}, diagonal={diag}."
+#             )
+
+#     elif isinstance(init_cov, np.ndarray):
+#         # Validate ndarray provided directly
+#         expected = (K, C) if diag else (K, C, C)
+#         if init_cov.shape != expected:
+#             raise ValueError(f"initial_covariances array has shape {init_cov.shape} but expected {expected}")
+#         config_kwargs["initial_covariances"] = init_cov.astype(np.float32, copy=False)
+
+#     # --- end injection ---
+
+#     #################################################################################################
+
+    # # Deal with the special case of static FC model (n_state = 1 )
+    # if config_kwargs['n_states'] == 1:
+    #     ts = data.time_series(prepared=True, concatenate=False)
+    #     # Note training_data.keep is in order. You need to preserve the order
+    #     # between data and alpha.
+    #     ts = [ts[i] for i in data.keep]
+    #     # Concatenate across all sessions
+    #     ts = np.concatenate(ts, axis=0)
+
+    #     from osl_dynamics.array_ops import estimate_gaussian_distribution
+    #     means, covs = estimate_gaussian_distribution(ts, nonzero_means=config_kwargs['learn_means'])
+
+    #     inf_params_dir = output_dir + "/inf_params"
+    #     os.makedirs(inf_params_dir, exist_ok=True)
+
+    #     save(f"{inf_params_dir}/means.npy", means)
+    #     save(f"{inf_params_dir}/covs.npy", covs)
+    #     return
+
+#     config = hmm.Config(**config_kwargs)
+#     model = hmm.Model(config)
+#     model.summary()
+
+#     # Initialisation
+#     default_init_kwargs = {"n_init": 3, "n_epochs": 1}
+#     init_kwargs = override_dict_defaults(default_init_kwargs, init_kwargs)
+#     _logger.info(f"Using init_kwargs: {init_kwargs}")
+#     init_history = model.random_state_time_course_initialization(
+#         data,
+#         **init_kwargs,
+#     )
+
+#     # Training
+#     history = model.fit(data, **fit_kwargs)
+
+#     # Get the variational free energy
+#     history["free_energy"] = model.free_energy(data)
+
+#     # Save trained model
+#     _logger.info(f"Saving model to: {model_dir}")
+#     model.save(model_dir)
+#     save(f"{model_dir}/init_history.pkl", init_history)
+#     save(f"{model_dir}/history.pkl", history)
+
+#     if save_inf_params:
+#         # Make output directory
+#         inf_params_dir = output_dir + "/inf_params"
+#         os.makedirs(inf_params_dir, exist_ok=True)
+
+#         # Get the inferred parameters
+#         alpha = model.get_alpha(data)
+#         means, covs = model.get_means_covariances()
+
+#         # Save inferred parameters
+#         save(f"{inf_params_dir}/alp.pkl", alpha)
+#         save(f"{inf_params_dir}/means.npy", means)
+#         save(f"{inf_params_dir}/covs.npy", covs)
+
+#     if calculate_free_energy:
+#         # Make output directory
+#         metric_dir = output_dir + "/metrics/"
+#         os.makedirs(metric_dir, exist_ok=True)
+
+#         # Get the free energy
+#         free_energy = model.free_energy(data, return_components=True)
+#         free_energy, log_likelihood, entropy, prior = model.free_energy(data, return_components=True)
+#         evidence = model.evidence(data)
+#         metrics = {'free_energy': float(free_energy),
+#                    'log_likelihood': float(log_likelihood),
+#                    'entropy': float(entropy),
+#                    'prior': float(prior),
+#                    'evidence': float(evidence),
+#                    }
+#         with open(f'{metric_dir}metrics.json', "w") as json_file:
+#             # Use json.dump to write the data to the file
+#             json.dump(metrics, json_file)
+
+#     # Concatenate loss from init_history and history
+#     all_losses = np.concatenate((init_history['loss'], history['loss']))
+
+#     # Generate corresponding x-axis values
+#     epochs = np.arange(1, len(all_losses) + 1)
+
+#     # Plot the loss function
+#     plot_line(
+#         x=[epochs],
+#         y=[all_losses],
+#         labels=["Loss"],
+#         x_label="Epochs",
+#         y_label="Loss",
+#         title="Training Loss Function",
+#         filename=os.path.join(output_dir, 'loss_function.pdf')
+#     )
+
+### THIS HAS MEANS AND STATIC FC WORKING BUT NOT VARIANCES (see next function) ###
+
+# def train_hmm(
+#         data,
+#         output_dir,
+#         config_kwargs,
+#         init_kwargs=None,
+#         infer_spatial='sample',
+#         fit_kwargs=None,
+#         save_inf_params=True,
+#         calculate_free_energy=True
+# ):
+#     """Train a Hidden Markov Model (OSL-Dynamics) with optional on-the-fly static FC init.
+
+#     Only instrumentation added for debugging; core logic unchanged.
+#     """
+#     if data is None:
+#         raise ValueError("data must be passed.")
+
+#     from osl_dynamics.models import hmm
+#     from osl_dynamics.array_ops import estimate_gaussian_distribution
+
+#     init_kwargs = {} if init_kwargs is None else init_kwargs
+#     fit_kwargs = {} if fit_kwargs is None else fit_kwargs
+
+#     # Directories
+#     model_dir = output_dir + "/model"
+#     debug_dir = os.path.join(output_dir, "debug")
+#     os.makedirs(debug_dir, exist_ok=True)
+
+#     # Create the model object
+#     _logger.info("Building model")
+#     default_config_kwargs = {
+#         "n_channels": data.n_channels,
+#         "sequence_length": 2000,
+#         "batch_size": 32,
+#         "learning_rate": 0.01,
+#         "n_epochs": 20,
+#     }
+#     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
+#     _logger.info(f"Using config_kwargs: {config_kwargs}")
+
+#     # Common derived config
+#     K = int(config_kwargs.get("n_states", 0))
+#     C_cfg = int(config_kwargs.get("n_channels", data.n_channels))
+#     diag = bool(config_kwargs.get("diagonal_covariances", False))
+#     init_cov = config_kwargs.get("initial_covariances", None)
+
+#     _logger.info(f"[dbg] K (n_states)={K}, C (from config)={C_cfg}, diag={diag}, init_cov={init_cov!r}")
+
+#     #################################################################################################
+#     # Option A: On-the-fly static FC requested for multi-state runs
+#     #################################################################################################
+#     if isinstance(init_cov, str) and init_cov == "static_fc" and K > 1:
+#         _logger.info("[static_fc] Computing static covariance on-the-fly from prepared data (K>1 path).")
+#         ts = data.time_series(prepared=True, concatenate=False)
+#         ts = [ts[i] for i in getattr(data, "keep", range(len(ts)))]  # preserve training order if present
+#         ts = np.concatenate(ts, axis=0)  # (T_total, C_actual)
+
+#         C_actual = ts.shape[1]
+#         _logger.info(f"[dbg K>1] ts shape={ts.shape}, dtype={ts.dtype}, C_actual={C_actual}")
+#         if C_actual != C_cfg:
+#             _logger.warning(f"[dbg K>1] C mismatch: config={C_cfg}, data={C_actual}. Proceeding with data size.")
+#         C = C_actual  # use what data says for all shape checks below
+
+#         # Estimate Gaussian
+#         nonzero_means = bool(config_kwargs.get("learn_means", False))
+#         _logger.info(f"[dbg K>1] Calling estimate_gaussian_distribution(nonzero_means={nonzero_means})")
+#         means_s, covs_s = estimate_gaussian_distribution(ts, nonzero_means=nonzero_means)
+
+#         # --- NEW: normalise shapes ---
+#         # covs_s may be (C, C) or (1, C, C). Make it (C, C).
+#         covs_s = np.asarray(covs_s)
+#         if covs_s.ndim == 3 and covs_s.shape[0] == 1:
+#             covs_s = covs_s[0]
+#         elif covs_s.ndim != 2:
+#             raise ValueError(f"[static_fc] Unexpected covs_s shape: {covs_s.shape}")
+
+#         # ensure symmetry + jitter
+#         covs_s = (covs_s + covs_s.T) / 2.0
+#         covs_s = covs_s.astype(np.float32, copy=False)
+#         covs_s = covs_s + np.eye(covs_s.shape[0], dtype=np.float32) * 1e-6
+
+#         K = int(config_kwargs.get("n_states", 0))
+#         diag = bool(config_kwargs.get("diagonal_covariances", False))
+
+#         if diag:
+#             variances = np.diag(covs_s).astype(np.float32)             # (C,)
+#             init_cov_arr = np.repeat(variances[None, :], K, axis=0)    # (K, C)
+#         else:
+#             init_cov_arr = np.repeat(covs_s[None, :, :], K, axis=0)    # (K, C, C)
+
+#         _logger.info(f"[dbg K>1] init_cov_arr.shape={init_cov_arr.shape} "
+#                     f"(expected {(K, covs_s.shape[0]) if diag else (K, covs_s.shape[0], covs_s.shape[0])})")
+
+#         config_kwargs["initial_covariances"] = init_cov_arr
+
+#         _logger.info(f"[static_fc] Injected initial_covariances with shape {init_cov_arr.shape}.")
+
+#     #################################################################################################
+#     # True static FC model (n_states == 1): unchanged shortcut + early return
+#     #################################################################################################
+    # if config_kwargs['n_states'] == 1:
+    #     _logger.info("[n_states==1] Static shortcut: estimating single Gaussian and returning.")
+    #     ts = data.time_series(prepared=True, concatenate=False)
+    #     ts = [ts[i] for i in getattr(data, "keep", range(len(ts)))]
+    #     ts = np.concatenate(ts, axis=0)
+
+    #     _logger.info(f"[dbg n==1] ts shape={ts.shape}, dtype={ts.dtype}")
+    #     nonzero_means = bool(config_kwargs.get("learn_means", False))
+    #     _logger.info(f"[dbg n==1] Calling estimate_gaussian_distribution(nonzero_means={nonzero_means})")
+
+    #     means, covs = estimate_gaussian_distribution(ts, nonzero_means=nonzero_means)
+    #     _logger.info(f"[dbg n==1] means.shape={np.shape(means)}, covs.shape={np.shape(covs)}")
+    #     _logger.info(f"[dbg n==1] covs sample 5x5:\n{covs[:5, :5]}")
+
+    #     # Save debug artifacts for cross-run comparison
+    #     np.save(os.path.join(debug_dir, "static_covs_n1.npy"), covs)
+
+    #     inf_params_dir = output_dir + "/inf_params"
+    #     os.makedirs(inf_params_dir, exist_ok=True)
+
+    #     save(f"{inf_params_dir}/means.npy", means)
+    #     save(f"{inf_params_dir}/covs.npy", covs)
+    #     return
+
+#     # Build & train model (standard path)
+#     config = hmm.Config(**config_kwargs)
+#     model = hmm.Model(config)
+#     model.summary()
+
+#     # Initialisation
+#     default_init_kwargs = {"n_init": 3, "n_epochs": 1}
+#     init_kwargs = override_dict_defaults(default_init_kwargs, init_kwargs)
+#     _logger.info(f"Using init_kwargs: {init_kwargs}")
+#     init_history = model.random_state_time_course_initialization(data, **init_kwargs)
+
+#     # Training
+#     history = model.fit(data, **fit_kwargs)
+
+#     # Get the variational free energy
+#     history["free_energy"] = model.free_energy(data)
+
+#     # Save trained model
+#     _logger.info(f"Saving model to: {model_dir}")
+#     model.save(model_dir)
+#     save(f"{model_dir}/init_history.pkl", init_history)
+#     save(f"{model_dir}/history.pkl", history)
+
+#     if save_inf_params:
+#         # Make output directory
+#         inf_params_dir = output_dir + "/inf_params"
+#         os.makedirs(inf_params_dir, exist_ok=True)
+
+#         # Get the inferred parameters
+#         alpha = model.get_alpha(data)
+#         means, covs = model.get_means_covariances()
+
+#         # Save inferred parameters
+#         save(f"{inf_params_dir}/alp.pkl", alpha)
+#         save(f"{inf_params_dir}/means.npy", means)
+#         save(f"{inf_params_dir}/covs.npy", covs)
+
+#     if calculate_free_energy:
+#         # Make output directory
+#         metric_dir = output_dir + "/metrics/"
+#         os.makedirs(metric_dir, exist_ok=True)
+
+#         # Get the free energy
+#         free_energy, log_likelihood, entropy, prior = model.free_energy(data, return_components=True)
+#         evidence = model.evidence(data)
+#         metrics = {
+#             'free_energy': float(free_energy),
+#             'log_likelihood': float(log_likelihood),
+#             'entropy': float(entropy),
+#             'prior': float(prior),
+#             'evidence': float(evidence),
+#         }
+#         with open(f'{metric_dir}metrics.json', "w") as json_file:
+#             json.dump(metrics, json_file)
+
+#     # Concatenate loss from init_history and history
+#     all_losses = np.concatenate((init_history['loss'], history['loss']))
+
+#     # Generate corresponding x-axis values
+#     epochs = np.arange(1, len(all_losses) + 1)
+
+#     # Plot the loss function
+#     plot_line(
+#         x=[epochs],
+#         y=[all_losses],
+#         labels=["Loss"],
+#         x_label="Epochs",
+#         y_label="Loss",
+#         title="Training Loss Function",
+#         filename=os.path.join(output_dir, 'loss_function.pdf')
+#     )
+
 def train_hmm(
         data,
         output_dir,
@@ -472,66 +1372,47 @@ def train_hmm(
         infer_spatial='sample',
         fit_kwargs=None,
         save_inf_params=True,
-        calculate_free_energy=True
+        calculate_free_energy=True,
 ):
-    """Train a `Hidden Markov Model <https://osl-dynamics.readthedocs.io/en\
-    /latest/autoapi/osl_dynamics/models/hmm/index.html>`_.
+    """
+    Train an OSL-Dynamics HMM with optional static FC usage.
 
-    This function will:
+    Modes:
+    1) n_states == 1
+       - Compute static Gaussian (means & covs) from prepared data.
+       - Save to <output_dir>/inf_params/{means.npy,covs.npy}.
+       - Also save <output_dir>/debug/static_cov.npy for convenience.
+       - No HMM is built.
 
-    1. Build an :code:`hmm.Model` object.
-    2. Initialize the parameters of the model using
-       :code:`Model.random_state_time_course_initialization`.
-    3. Perform full training.
-    4. Save the inferred parameters (state probabilities, means and covariances)
-       if :code:`save_inf_params=True`.
+    2) n_states > 1 AND initial_covariances == "static_fc"
+       - Compute static FC (same estimator as in mode 1).
+       - Use it as the *initializer passed into the model*:
+         • if diagonal_covariances=True  -> K×C variances from diag(static FC)
+         • else (full covariances)       -> K×C×C static FC replicated across states
+       - Then build/train HMM normally. Whether covariances are updated is
+         governed by learn_covariances and diagonal_covariances.
 
-    This function will create two directories:
-
-    - :code:`<output_dir>/model`, which contains the trained model.
-    - :code:`<output_dir>/inf_params`, which contains the inferred parameters.
-      This directory is only created if :code:`save_inf_params=True`.
-    - :code:`<output_dir>/metrics`, which contains the free energy on the training data.
-      This directory is only created if :code:`calculate_free_energy=True`.
-
-    Parameters
-    ----------
-    data : osl_dynamics.data.Data
-        Data object for training the model.
-    output_dir : str
-        Path to output directory.
-    config_kwargs : dict
-        Keyword arguments to pass to `hmm.Config <https://osl-dynamics\
-        .readthedocs.io/en/latest/autoapi/osl_dynamics/models/hmm/index.html\
-        #osl_dynamics.models.hmm.Config>`_. Defaults to::
-
-            {'sequence_length': 2000,
-             'batch_size': 32,
-             'learning_rate': 0.01,
-             'n_epochs': 20}.
-    init_kwargs : dict, optional
-        Keyword arguments to pass to
-        :code:`Model.random_state_time_course_initialization`. Defaults to::
-
-            {'n_init': 3, 'n_epochs': 1}.
-    fit_kwargs : dict, optional
-        Keyword arguments to pass to the :code:`Model.fit`. No defaults.
-    save_inf_params : bool, optional
-        Should we save the inferred parameters?
+    3) n_states > 1 AND initial_covariances not set
+       - Standard HMM training; no static FC used.
     """
     if data is None:
         raise ValueError("data must be passed.")
 
     from osl_dynamics.models import hmm
+    from osl_dynamics.array_ops import estimate_gaussian_distribution
 
     init_kwargs = {} if init_kwargs is None else init_kwargs
     fit_kwargs = {} if fit_kwargs is None else fit_kwargs
 
-    # Directories
-    model_dir = output_dir + "/model"
+    # ------------------- Directories -------------------
+    model_dir = os.path.join(output_dir, "model")
+    debug_dir = os.path.join(output_dir, "debug")
+    inf_params_dir = os.path.join(output_dir, "inf_params")
+    os.makedirs(debug_dir, exist_ok=True)
+    os.makedirs(inf_params_dir, exist_ok=True)
 
-    # Create the model object
-    _logger.info("Building model")
+    # ------------------- Config -------------------
+    _logger.info("Building model configuration.")
     default_config_kwargs = {
         "n_channels": data.n_channels,
         "sequence_length": 2000,
@@ -540,101 +1421,201 @@ def train_hmm(
         "n_epochs": 20,
     }
     config_kwargs = override_dict_defaults(default_config_kwargs, config_kwargs)
-    _logger.info(f"Using config_kwargs: {config_kwargs}")
 
-    # Deal with the special case of static FC model (n_state = 1 )
-    if config_kwargs['n_states'] == 1:
+    K = int(config_kwargs.get("n_states", 0))
+    C_cfg = int(config_kwargs.get("n_channels", data.n_channels))
+    diag = bool(config_kwargs.get("diagonal_covariances", False))
+    init_cov_mode = config_kwargs.get("initial_covariances", None)
+
+    _logger.info(f"[dbg] Config: K={K}, C={C_cfg}, diagonal={diag}, init_cov={init_cov_mode!r}")
+
+    def _compute_static_gaussian():
+        """Returns (means, cov) using the same estimator as the original 1-state path."""
         ts = data.time_series(prepared=True, concatenate=False)
-        # Note training_data.keep is in order. You need to preserve the order
-        # between data and alpha.
-        ts = [ts[i] for i in data.keep]
-        # Concatenate across all sessions
-        ts = np.concatenate(ts, axis=0)
+        ts = [ts[i] for i in getattr(data, "keep", range(len(ts)))]
+        ts = np.concatenate(ts, axis=0)  # (T_total, C_actual)
+        C_actual = ts.shape[1]
+        if C_actual != C_cfg:
+            raise ValueError(f"[static] Channel mismatch: data={C_actual}, config={C_cfg}")
+        means, cov = estimate_gaussian_distribution(
+            ts, nonzero_means=bool(config_kwargs.get("learn_means", False))
+        )
+        cov = np.asarray(cov)
+        if cov.ndim == 3 and cov.shape[0] == 1:
+            cov = cov[0]
+        elif cov.ndim != 2:
+            raise ValueError(f"[static] Unexpected cov shape: {cov.shape}")
+        cov = ((cov + cov.T) / 2.0).astype(np.float32, copy=False)
+        return means, cov
 
-        from osl_dynamics.array_ops import estimate_gaussian_distribution
-        means, covs = estimate_gaussian_distribution(ts, nonzero_means=config_kwargs['learn_means'])
+    # =================== MODE 1: n_states == 1 ===================
+    if K == 1:
+        _logger.info("[mode 1] n_states=1 → compute static means/covariances and save only.")
+        means_static, cov_static = _compute_static_gaussian()
 
-        inf_params_dir = output_dir + "/inf_params"
-        os.makedirs(inf_params_dir, exist_ok=True)
+        # Save for downstream
+        save(os.path.join(inf_params_dir, "means.npy"), means_static)
+        save(os.path.join(inf_params_dir, "covs.npy"), cov_static)
 
-        save(f"{inf_params_dir}/means.npy", means)
-        save(f"{inf_params_dir}/covs.npy", covs)
+        # Debug copy
+        np.save(os.path.join(debug_dir, "static_cov.npy"), cov_static)
+        _logger.info(f"[static] Saved means.npy (shape {np.asarray(means_static).shape}) "
+                     f"and covs.npy (shape {cov_static.shape}) to {inf_params_dir}")
+        _logger.info(f"[static] First 5×5 block of cov:\n{cov_static[:5, :5]}")
         return
+
+    # =================== MODE 2: K>1 and init_cov == "static_fc" ===================
+    if isinstance(init_cov_mode, str) and init_cov_mode == "static_fc":
+        _logger.info("[mode 2] Multi-state + 'static_fc' → compute static FC and USE as initializer.")
+        # Compute static FC once (same as mode 1)
+        means_static, cov_static = _compute_static_gaussian()
+        np.save(os.path.join(debug_dir, "static_cov.npy"), cov_static)
+        save(os.path.join(debug_dir, "static_means.npy"), means_static)
+        _logger.info(f"[static] Computed static FC with shape {cov_static.shape}")
+
+        # Build initializer array expected by OSL given diagonal/full setting
+        if diag:
+            variances = np.diag(cov_static).astype(np.float32)      # (C,)
+            init_cov_arr = np.repeat(variances[None, :], K, axis=0) # (K, C)
+        else:
+            init_cov_arr = np.repeat(cov_static[None, :, :], K, axis=0).astype(np.float32)  # (K, C, C)
+
+        # Replace the "static_fc" string with the actual array initializer
+        config_kwargs = dict(config_kwargs)  # shallow copy just in case
+        config_kwargs["initial_covariances"] = init_cov_arr
+
+        # ---- Build & train HMM (standard flow) ----
+        ip = config_kwargs.get("initial_trans_prob", None)
+        if isinstance(ip, list):
+            config_kwargs["initial_trans_prob"] = np.array(ip, dtype=float)
+            _logger.info(f"[train] Converted initial_trans_prob from list to np.ndarray "
+                        f"with shape {config_kwargs['initial_trans_prob'].shape}")
+        elif isinstance(ip, np.ndarray):
+            _logger.info(f"[train] initial_trans_prob already np.ndarray with shape {ip.shape}")
+        else:
+            _logger.info("[train] No initial_trans_prob provided (using random or default)")
+
+        config = hmm.Config(**config_kwargs)
+        model = hmm.Model(config)
+        model.summary()
+
+        default_init_kwargs = {"n_init": 3, "n_epochs": 1}
+        init_kwargs = override_dict_defaults(default_init_kwargs, init_kwargs)
+        _logger.info(f"[train] Using init_kwargs: {init_kwargs}")
+
+        init_history = model.random_state_time_course_initialization(data, **init_kwargs)
+        history = model.fit(data, **fit_kwargs)
+        history["free_energy"] = model.free_energy(data)
+
+        _logger.info(f"[train] Saving model to: {model_dir}")
+        model.save(model_dir)
+        save(os.path.join(model_dir, "init_history.pkl"), init_history)
+        save(os.path.join(model_dir, "history.pkl"), history)
+
+        if save_inf_params:
+            alpha = model.get_alpha(data)
+            means, covs = model.get_means_covariances()
+            save(os.path.join(inf_params_dir, "alp.pkl"), alpha)
+            save(os.path.join(inf_params_dir, "means.npy"), means)
+            save(os.path.join(inf_params_dir, "covs.npy"), covs)
+
+        # Metrics (optional)
+        if calculate_free_energy:
+            metric_dir = os.path.join(output_dir, "metrics")
+            os.makedirs(metric_dir, exist_ok=True)
+            fe, ll, ent, prior = model.free_energy(data, return_components=True)
+            evidence = model.evidence(data)
+            with open(os.path.join(metric_dir, "metrics.json"), "w") as f:
+                json.dump({
+                    "free_energy": float(fe),
+                    "log_likelihood": float(ll),
+                    "entropy": float(ent),
+                    "prior": float(prior),
+                    "evidence": float(evidence),
+                }, f, indent=2)
+
+        # Plot loss
+        if "loss" in init_history and "loss" in history:
+            all_losses = np.concatenate((init_history["loss"], history["loss"]))
+            epochs = np.arange(1, len(all_losses) + 1)
+            plot_line(
+                x=[epochs],
+                y=[all_losses],
+                labels=["Loss"],
+                x_label="Epochs",
+                y_label="Loss",
+                title="Training Loss Function",
+                filename=os.path.join(output_dir, "loss_function.pdf"),
+            )
+        return
+
+    # =================== MODE 3: K>1, no 'static_fc' ===================
+    _logger.info("[mode 3] Standard HMM training (no static FC used).")
+
+    # --- ensure initial_trans_prob is a numpy array (Config requires it) ---
+    ip = config_kwargs.get("initial_trans_prob", None)
+    if isinstance(ip, list):
+        config_kwargs["initial_trans_prob"] = np.asarray(ip, dtype=float)
+        _logger.info(f"[train] Converted initial_trans_prob list→ndarray "
+                    f"shape={config_kwargs['initial_trans_prob'].shape}")
+    elif isinstance(ip, np.ndarray):
+        _logger.info(f"[train] initial_trans_prob already ndarray shape={ip.shape}")
+    else:
+        _logger.info("[train] No initial_trans_prob provided (using random/default)")
 
     config = hmm.Config(**config_kwargs)
     model = hmm.Model(config)
     model.summary()
 
-    # Initialisation
     default_init_kwargs = {"n_init": 3, "n_epochs": 1}
     init_kwargs = override_dict_defaults(default_init_kwargs, init_kwargs)
-    _logger.info(f"Using init_kwargs: {init_kwargs}")
-    init_history = model.random_state_time_course_initialization(
-        data,
-        **init_kwargs,
-    )
+    _logger.info(f"[train] Using init_kwargs: {init_kwargs}")
 
-    # Training
+    init_history = model.random_state_time_course_initialization(data, **init_kwargs)
     history = model.fit(data, **fit_kwargs)
-
-    # Get the variational free energy
     history["free_energy"] = model.free_energy(data)
 
-    # Save trained model
-    _logger.info(f"Saving model to: {model_dir}")
+    _logger.info(f"[train] Saving model to: {model_dir}")
     model.save(model_dir)
-    save(f"{model_dir}/init_history.pkl", init_history)
-    save(f"{model_dir}/history.pkl", history)
+    save(os.path.join(model_dir, "init_history.pkl"), init_history)
+    save(os.path.join(model_dir, "history.pkl"), history)
 
     if save_inf_params:
-        # Make output directory
-        inf_params_dir = output_dir + "/inf_params"
-        os.makedirs(inf_params_dir, exist_ok=True)
-
-        # Get the inferred parameters
         alpha = model.get_alpha(data)
         means, covs = model.get_means_covariances()
+        save(os.path.join(inf_params_dir, "alp.pkl"), alpha)
+        save(os.path.join(inf_params_dir, "means.npy"), means)
+        save(os.path.join(inf_params_dir, "covs.npy"), covs)
 
-        # Save inferred parameters
-        save(f"{inf_params_dir}/alp.pkl", alpha)
-        save(f"{inf_params_dir}/means.npy", means)
-        save(f"{inf_params_dir}/covs.npy", covs)
-
+    # Metrics (optional)
     if calculate_free_energy:
-        # Make output directory
-        metric_dir = output_dir + "/metrics/"
+        metric_dir = os.path.join(output_dir, "metrics")
         os.makedirs(metric_dir, exist_ok=True)
-
-        # Get the free energy
-        free_energy = model.free_energy(data, return_components=True)
-        free_energy, log_likelihood, entropy, prior = model.free_energy(data, return_components=True)
+        fe, ll, ent, prior = model.free_energy(data, return_components=True)
         evidence = model.evidence(data)
-        metrics = {'free_energy': float(free_energy),
-                   'log_likelihood': float(log_likelihood),
-                   'entropy': float(entropy),
-                   'prior': float(prior),
-                   'evidence': float(evidence),
-                   }
-        with open(f'{metric_dir}metrics.json', "w") as json_file:
-            # Use json.dump to write the data to the file
-            json.dump(metrics, json_file)
+        with open(os.path.join(metric_dir, "metrics.json"), "w") as f:
+            json.dump({
+                "free_energy": float(fe),
+                "log_likelihood": float(ll),
+                "entropy": float(ent),
+                "prior": float(prior),
+                "evidence": float(evidence),
+            }, f, indent=2)
 
-    # Concatenate loss from init_history and history
-    all_losses = np.concatenate((init_history['loss'], history['loss']))
+    # Plot loss
+    if "loss" in init_history and "loss" in history:
+        all_losses = np.concatenate((init_history["loss"], history["loss"]))
+        epochs = np.arange(1, len(all_losses) + 1)
+        plot_line(
+            x=[epochs],
+            y=[all_losses],
+            labels=["Loss"],
+            x_label="Epochs",
+            y_label="Loss",
+            title="Training Loss Function",
+            filename=os.path.join(output_dir, "loss_function.pdf"),
+        )
 
-    # Generate corresponding x-axis values
-    epochs = np.arange(1, len(all_losses) + 1)
-
-    # Plot the loss function
-    plot_line(
-        x=[epochs],
-        y=[all_losses],
-        labels=["Loss"],
-        x_label="Epochs",
-        y_label="Loss",
-        title="Training Loss Function",
-        filename=os.path.join(output_dir, 'loss_function.pdf')
-    )
 
 def train_dynemo(
         data,

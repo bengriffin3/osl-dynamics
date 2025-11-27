@@ -1451,154 +1451,252 @@ class Model(ModelBase):
 
         return alpha, np.array(means), np.array(covariances)
 
-    def dual_estimation(self, training_data, alpha=None, n_jobs=1,concatenate=False,method='sample'):
-        """Dual estimation to get session-specific observation model parameters.
+    # def dual_estimation(self, training_data, alpha=None, n_jobs=1,concatenate=False,method='sample'):
+    #     """Dual estimation to get session-specific observation model parameters.
 
-        Here, we estimate the state means and covariances for sessions
-        with the posterior distribution of the states held fixed.
+    #     Here, we estimate the state means and covariances for sessions
+    #     with the posterior distribution of the states held fixed.
 
-        Parameters
-        ----------
-        training_data : osl_dynamics.data.Data
-            Prepared training data object.
-        alpha : list of np.ndarray, optional
-            Posterior distribution of the states. Shape is
-            (n_sessions, n_samples, n_states).
-        n_jobs : int, optional
-            Number of jobs to run in parallel.
-        concatenate: bool, optional
-            Whether to concatenate the data before calculating estimating state stats
-        method: str, optional
-            which method to use. 'sample' or 'mle'
+    #     Parameters
+    #     ----------
+    #     training_data : osl_dynamics.data.Data
+    #         Prepared training data object.
+    #     alpha : list of np.ndarray, optional
+    #         Posterior distribution of the states. Shape is
+    #         (n_sessions, n_samples, n_states).
+    #     n_jobs : int, optional
+    #         Number of jobs to run in parallel.
+    #     concatenate: bool, optional
+    #         Whether to concatenate the data before calculating estimating state stats
+    #     method: str, optional
+    #         which method to use. 'sample' or 'mle'
 
-        Returns
-        -------
-        means : np.ndarray
-            Session-specific means. Shape is (n_sessions, n_states, n_channels).
-        covariances : np.ndarray
-            Session-specific covariances.
-            Shape is (n_sessions, n_states, n_channels, n_channels).
-        """
+    #     Returns
+    #     -------
+    #     means : np.ndarray
+    #         Session-specific means. Shape is (n_sessions, n_states, n_channels).
+    #     covariances : np.ndarray
+    #         Session-specific covariances.
+    #         Shape is (n_sessions, n_states, n_channels, n_channels).
+    #     """
+    #     if alpha is None:
+    #         # Get the posterior
+    #         alpha = self.get_alpha(training_data, concatenate=False)
+
+    #     # Validation
+    #     if isinstance(alpha, np.ndarray):
+    #         alpha = [alpha]
+
+    #     # Get the session-specific data
+    #     data = training_data.time_series(prepared=True, concatenate=False)
+
+    #     # Note training_data.keep is in order. You need to preserve the order
+    #     # between data and alpha.
+    #     data = [data[i] for i in training_data.keep]
+
+
+    #     if len(alpha) != len(data):
+    #         raise ValueError(
+    #             "len(alpha) and training_data.n_sessions must be the same."
+    #         )
+
+    #     # Make sure the data and alpha have the same number of samples
+    #     data = [d[: a.shape[0]] for d, a in zip(data, alpha)]
+
+    #     # Concatenate the variable if required.
+    #     if concatenate:
+    #         data = [np.concatenate(data,axis=0)]
+    #         alpha = [np.concatenate(alpha,axis=0)]
+
+    #     n_states = self.config.n_states
+    #     n_channels = self.config.n_channels
+
+    #     # Helper function for dual estimation for a single session
+    #     def _single_dual_estimation(a, x,method='sample'):
+    #         # Argmax time series if not using maximum likelihood estimator
+    #         if method == 'sample':
+    #             a = argmax_time_courses(a)
+
+    #         sum_a = np.sum(a, axis=0)
+    #         if self.config.learn_means:
+    #             session_means = np.empty((n_states, n_channels))
+    #             for state in range(n_states):
+    #                 if method == 'sample':
+    #                     session_means[state] = (
+    #                         np.sum(x * a[:, state, None], axis=0) / sum_a[state]
+    #                     )
+    #                 elif method == 'mle':
+    #                     # Maximum log-likelihood estimation
+    #                     session_means[state] = np.average(x, axis=0, weights=a[:, state])
+    #                 else:
+    #                     raise ValueError(f"Unsupported method: {method}")
+    #         else:
+    #             session_means = self.get_means()
+
+    #         if self.config.learn_covariances:
+    #             session_covariances = np.empty((n_states, n_channels, n_channels))
+    #             for state in range(n_states):
+    #                 diff = x - session_means[state]
+    #                 if method == 'sample':
+    #                     if sum_a[state] == 0:
+    #                         session_covariances[state] = np.eye(self.config.n_channels)
+    #                     else:
+    #                         session_covariances[state] = (
+    #                             np.sum(
+    #                                 diff[:, :, None]
+    #                                 * diff[:, None, :]
+    #                                 * a[:, state, None, None],
+    #                                 axis=0,
+    #                             )
+    #                             / sum_a[state]
+    #                         )
+    #                 elif method == 'mle':
+    #                     # MLE covariance estimation
+    #                     weights = a[:, state]
+    #                     weighted_diff = diff * np.sqrt(weights[:, None])
+    #                     session_covariances[state] = np.dot(weighted_diff.T, weighted_diff) / np.sum(weights)
+    #                 else:
+    #                     raise ValueError(f"Unsupported method: {method}")
+
+    #                 session_covariances[
+    #                     state
+    #                 ] += self.config.covariances_epsilon * np.eye(
+    #                     self.config.n_channels
+    #                 )
+    #         else:
+    #             session_covariances = self.get_covariances()
+
+    #         return session_means, session_covariances
+
+    #     # Setup keyword arguments to pass to the helper function
+    #     kwargs = []
+    #     for a, x in zip(alpha, data):
+    #         kwargs.append({"a": a, "x": x,"method":method})
+
+    #     if len(data) == 1:
+    #         _logger.info("Dual estimation")
+    #         results = [_single_dual_estimation(**kwargs[0])]
+
+    #     elif n_jobs == 1:
+    #         results = []
+    #         for i in trange(len(data), desc="Dual estimation"):
+    #             results.append(_single_dual_estimation(**kwargs[i]))
+
+    #     else:
+    #         _logger.info("Dual estimation")
+    #         results = pqdm(
+    #             kwargs,
+    #             _single_dual_estimation,
+    #             argument_type="kwargs",
+    #             n_jobs=n_jobs,
+    #         )
+
+    #     # Unpack the results
+    #     means = []
+    #     covariances = []
+    #     for result in results:
+    #         m, c = result
+    #         means.append(m)
+    #         covariances.append(c)
+
+    #     return np.squeeze(means), np.squeeze(covariances)
+
+    def dual_estimation(self, training_data, alpha=None, n_jobs=1, concatenate=False, method='sample'):
+        """Dual estimation to get session-specific observation model parameters."""
         if alpha is None:
-            # Get the posterior
             alpha = self.get_alpha(training_data, concatenate=False)
-
-        # Validation
         if isinstance(alpha, np.ndarray):
             alpha = [alpha]
 
-        # Get the session-specific data
         data = training_data.time_series(prepared=True, concatenate=False)
-
-        # Note training_data.keep is in order. You need to preserve the order
-        # between data and alpha.
         data = [data[i] for i in training_data.keep]
 
-
         if len(alpha) != len(data):
-            raise ValueError(
-                "len(alpha) and training_data.n_sessions must be the same."
-            )
-
-        # Make sure the data and alpha have the same number of samples
+            raise ValueError("len(alpha) and training_data.n_sessions must be the same.")
         data = [d[: a.shape[0]] for d, a in zip(data, alpha)]
 
-        # Concatenate the variable if required.
         if concatenate:
-            data = [np.concatenate(data,axis=0)]
-            alpha = [np.concatenate(alpha,axis=0)]
+            data = [np.concatenate(data, axis=0)]
+            alpha = [np.concatenate(alpha, axis=0)]
 
         n_states = self.config.n_states
         n_channels = self.config.n_channels
 
-        # Helper function for dual estimation for a single session
-        def _single_dual_estimation(a, x,method='sample'):
-            # Argmax time series if not using maximum likelihood estimator
+        def _single_dual_estimation(a, x, method='sample'):
+            # Argmax if requested
             if method == 'sample':
                 a = argmax_time_courses(a)
 
             sum_a = np.sum(a, axis=0)
+
+            # ======== MEANS ========
             if self.config.learn_means:
                 session_means = np.empty((n_states, n_channels))
                 for state in range(n_states):
-                    if method == 'sample':
-                        session_means[state] = (
-                            np.sum(x * a[:, state, None], axis=0) / sum_a[state]
-                        )
+                    if sum_a[state] == 0:
+                        session_means[state] = 0
+                    elif method == 'sample':
+                        session_means[state] = np.sum(x * a[:, state, None], axis=0) / sum_a[state]
                     elif method == 'mle':
-                        # Maximum log-likelihood estimation
                         session_means[state] = np.average(x, axis=0, weights=a[:, state])
                     else:
                         raise ValueError(f"Unsupported method: {method}")
             else:
                 session_means = self.get_means()
 
+            # ======== COVARIANCES / VARIANCES ========
             if self.config.learn_covariances:
-                session_covariances = np.empty((n_states, n_channels, n_channels))
+                session_covariances = np.zeros((n_states, n_channels, n_channels))
                 for state in range(n_states):
                     diff = x - session_means[state]
-                    if method == 'sample':
-                        if sum_a[state] == 0:
-                            session_covariances[state] = np.eye(self.config.n_channels)
-                        else:
+                    if sum_a[state] == 0:
+                        session_covariances[state] = np.eye(n_channels)
+                        continue
+
+                    if self.config.diagonal_covariances:
+                        # --- diagonal (variances only) ---
+                        var = np.sum(a[:, state, None] * (diff ** 2), axis=0) / sum_a[state]
+                        var = np.maximum(var, 0)  # ensure non-negative
+                        var += self.config.covariances_epsilon
+                        session_covariances[state, range(n_channels), range(n_channels)] = var
+                    else:
+                        # --- full covariance ---
+                        if method == 'sample':
                             session_covariances[state] = (
                                 np.sum(
-                                    diff[:, :, None]
-                                    * diff[:, None, :]
-                                    * a[:, state, None, None],
+                                    diff[:, :, None] * diff[:, None, :] * a[:, state, None, None],
                                     axis=0,
-                                )
-                                / sum_a[state]
+                                ) / sum_a[state]
                             )
-                    elif method == 'mle':
-                        # MLE covariance estimation
-                        weights = a[:, state]
-                        weighted_diff = diff * np.sqrt(weights[:, None])
-                        session_covariances[state] = np.dot(weighted_diff.T, weighted_diff) / np.sum(weights)
-                    else:
-                        raise ValueError(f"Unsupported method: {method}")
+                        elif method == 'mle':
+                            weights = a[:, state]
+                            weighted_diff = diff * np.sqrt(weights[:, None])
+                            session_covariances[state] = (
+                                np.dot(weighted_diff.T, weighted_diff) / np.sum(weights)
+                            )
+                        else:
+                            raise ValueError(f"Unsupported method: {method}")
 
-                    session_covariances[
-                        state
-                    ] += self.config.covariances_epsilon * np.eye(
-                        self.config.n_channels
-                    )
+                        session_covariances[state] += (
+                            self.config.covariances_epsilon * np.eye(n_channels)
+                        )
             else:
                 session_covariances = self.get_covariances()
 
             return session_means, session_covariances
 
-        # Setup keyword arguments to pass to the helper function
-        kwargs = []
-        for a, x in zip(alpha, data):
-            kwargs.append({"a": a, "x": x,"method":method})
-
+        # Run in parallel / serial
+        kwargs = [{"a": a, "x": x, "method": method} for a, x in zip(alpha, data)]
         if len(data) == 1:
-            _logger.info("Dual estimation")
             results = [_single_dual_estimation(**kwargs[0])]
-
         elif n_jobs == 1:
             results = []
             for i in trange(len(data), desc="Dual estimation"):
                 results.append(_single_dual_estimation(**kwargs[i]))
-
         else:
-            _logger.info("Dual estimation")
-            results = pqdm(
-                kwargs,
-                _single_dual_estimation,
-                argument_type="kwargs",
-                n_jobs=n_jobs,
-            )
+            results = pqdm(kwargs, _single_dual_estimation, argument_type="kwargs", n_jobs=n_jobs)
 
-        # Unpack the results
-        means = []
-        covariances = []
-        for result in results:
-            m, c = result
-            means.append(m)
-            covariances.append(c)
-
+        means, covariances = zip(*results)
         return np.squeeze(means), np.squeeze(covariances)
 
     def save_weights(self, filepath):
