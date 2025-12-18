@@ -30,6 +30,8 @@ def get_observation_model_parameter(model, layer_name):
     available_layers = [
         "means",
         "covs",
+        "covs_shared",
+        "covs_diag",
         "stds",
         "corrs",
         "group_means",
@@ -71,6 +73,8 @@ def set_observation_model_parameter(
     available_layers = [
         "means",
         "covs",
+        "covs_shared",
+        "covs_diag",
         "stds",
         "corrs",
         "group_means",
@@ -84,10 +88,16 @@ def set_observation_model_parameter(
 
     obs_parameter = obs_parameter.astype(np.float32)
 
-    if layer_name == "stds" or (layer_name == "covs" and diagonal_covariances):
+    # if layer_name == "stds" or (layer_name == "covs" and diagonal_covariances):
+    #     if obs_parameter.ndim == 3:
+    #         # Only keep the diagonal as a vector
+    #         obs_parameter = np.diagonal(obs_parameter, axis1=1, axis2=2)
+
+    if layer_name == "stds" or (layer_name == "covs" and diagonal_covariances) or (layer_name == "covs_diag"):
         if obs_parameter.ndim == 3:
             # Only keep the diagonal as a vector
             obs_parameter = np.diagonal(obs_parameter, axis1=1, axis2=2)
+
 
     obs_layer = model.get_layer(layer_name)
     learnable_tensor_layer = obs_layer.layers[0]
