@@ -463,16 +463,23 @@ class Model(MarkovStateInferenceModelBase):
             if covariances.shape != (K, P, P):
                 raise ValueError(f"covariances must have shape ({K}, {P}, {P}).")
 
-            # Shared off-diagonal
-            C = covariances.copy()
-            C[:, np.arange(P), np.arange(P)] = 0.0
-            C = C.mean(axis=0, keepdims=True)  # (1,P,P)
-            C[:, np.arange(P), np.arange(P)] = 1.0
+            eps = self.config.covariances_epsilon
+            if eps is None:
+                eps = 1e-6
+            eps = max(float(eps), 1e-6)
 
-            # State-specific diagonal residual (passed as (K,P) into DiagonalMatricesLayer)
-            target_diag = np.diagonal(covariances, axis1=1, axis2=2)          # (K,P)
-            C_diag = np.diagonal(C[0], axis1=0, axis2=1)[None, :]             # (1,P)
-            D_diag = np.maximum(target_diag - C_diag, 1e-6)                   # (K,P)
+            # Shared covariance (we will rely on D_diag for state-specific variances).
+            # Use the mean across states and set a small diagonal for stability.
+            C = covariances.mean(axis=0, keepdims=True)  # (1, P, P)
+            # keep C diagonal as the mean diagonal to help PD
+            C_diag = np.diagonal(C[0], axis1=0, axis2=1).copy()
+            C[:, np.arange(P), np.arange(P)] = np.maximum(C_diag, eps)
+
+
+            # State-specific diagonal residuals (K, P)
+            target_diag = np.diagonal(covariances, axis1=1, axis2=2)  # (K,P)
+            C_diag = np.diagonal(C[0], axis1=0, axis2=1)[None, :]     # (1,P)
+            D_diag = np.maximum(target_diag - C_diag, eps)
 
             obs_mod.set_observation_model_parameter(
                 self.model,
@@ -485,7 +492,6 @@ class Model(MarkovStateInferenceModelBase):
                 D_diag,
                 layer_name="covs_diag",
                 update_initializer=update_initializer,
-                # diagonal_covariances=True,
             )
             return
 
@@ -497,6 +503,7 @@ class Model(MarkovStateInferenceModelBase):
             update_initializer=update_initializer,
             diagonal_covariances=self.config.diagonal_covariances,
         )
+
 
     def set_means_covariances(
         self,
