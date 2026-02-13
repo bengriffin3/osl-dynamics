@@ -3,10 +3,12 @@
 """
 
 import tensorflow as tf
-from keras.optimizers.optimizer_v2 import optimizer_v2
+# from keras.optimizers.optimizer_v2 import optimizer_v2
+from tensorflow.keras.optimizers.legacy import Optimizer
 
 
-class ExponentialMovingAverage(optimizer_v2.OptimizerV2):
+# class ExponentialMovingAverage(optimizer_v2.OptimizerV2):
+class ExponentialMovingAverage(Optimizer):
     """Optimizer for applying a exponential moving average update.
 
     Parameters
@@ -15,9 +17,10 @@ class ExponentialMovingAverage(optimizer_v2.OptimizerV2):
         Decay for the exponential moving average, which will be
         calculated as :code:`(1-decay) * old + decay * new`.
     """
-
-    def __init__(self, decay=0.1):
-        super().__init__(name="EMAOptimizer")
+    def __init__(self, decay=0.1, name="EMAOptimizer", **kwargs):
+        super().__init__(name=name, **kwargs)
+    # def __init__(self, decay=0.1):
+        # super().__init__(name="EMAOptimizer")
         self.decay = decay
 
     @tf.function
@@ -27,7 +30,8 @@ class ExponentialMovingAverage(optimizer_v2.OptimizerV2):
         return var.assign((1.0 - self.decay) * var + self.decay * grad)
 
 
-class MarkovStateModelOptimizer(optimizer_v2.OptimizerV2):
+# class MarkovStateModelOptimizer(optimizer_v2.OptimizerV2):
+class MarkovStateModelOptimizer(Optimizer):    
     """Optimizer for a model containing a hidden state Markov chain.
 
     Parameters
@@ -41,8 +45,10 @@ class MarkovStateModelOptimizer(optimizer_v2.OptimizerV2):
         Learning rate for the base optimizer.
     """
 
-    def __init__(self, ema_optimizer, base_optimizer, learning_rate):
-        super().__init__(name="MarkovStateModelOptimizer")
+    # def __init__(self, ema_optimizer, base_optimizer, learning_rate):
+        # super().__init__(name="MarkovStateModelOptimizer")
+    def __init__(self, ema_optimizer, base_optimizer, learning_rate=1e-3, name="MarkovStateModelOptimizer", **kwargs):
+        super().__init__(name=name, **kwargs)
 
         # Set learning rate for this optimizer (needed to avoid and error)
         self._set_hyper("learning_rate", learning_rate)
