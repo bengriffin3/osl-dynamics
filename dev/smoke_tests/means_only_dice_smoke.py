@@ -42,7 +42,7 @@ def make_offset_means(
 
 
 if __name__ == "__main__":
-    tf.keras.utils.set_random_seed(0)
+    # tf.keras.utils.set_random_seed(0)
 
     out_dir = os.path.join(os.path.dirname(__file__), "_outputs", "means_only_dice")
     os.makedirs(out_dir, exist_ok=True)
@@ -87,10 +87,19 @@ if __name__ == "__main__":
         n_epochs=20,
     )
     model = Model(config)
+    model.summary()
 
     # Ensure model uses the same fixed covariances as the simulation.
     # If set_covariances is a no-op when learn_covariances=False in your version, that’s fine.
+    # Fix covariances to identity (must match simulation)
+    identity_covs = np.tile(np.eye(n_channels)[None, :, :], (n_states, 1, 1))
     model.set_covariances(identity_covs)
+
+    covs_after = model.get_covariances()
+    print("Covs check: max|covs - I| =", float(np.max(np.abs(covs_after - identity_covs))))
+    print("Covs diag (state0) min/max:", float(np.min(np.diag(covs_after[0]))), float(np.max(np.diag(covs_after[0]))))
+    print("Covs offdiag (state0) max:", float(np.max(np.abs(covs_after[0] - np.diag(np.diag(covs_after[0]))))))
+
 
     # Init then fit
     model.random_state_time_course_initialization(data, n_init=3, n_epochs=2)
