@@ -15,7 +15,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.data import Dataset
 from tensorflow.keras import optimizers
-from tensorflow.python.distribute.distribution_strategy_context import get_strategy
+# from tensorflow.python.distribute.distribution_strategy_context import get_strategy
+import tensorflow as tf
 from tensorflow.python.distribute.mirrored_strategy import MirroredStrategy
 from tqdm.auto import tqdm as tqdm_auto
 from tqdm.keras import TqdmCallback
@@ -77,7 +78,8 @@ class BaseModelConfig:
         if self.multi_gpu:
             self.strategy = MirroredStrategy()
         elif self.strategy is None:
-            self.strategy = get_strategy()
+            # self.strategy = get_strategy()
+            self.strategy = tf.distribute.get_strategy()
 
     def validate_dimension_parameters(self):
         if self.n_modes is None and self.n_states is None:
