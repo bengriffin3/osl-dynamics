@@ -1,0 +1,456 @@
+commit 5ab15694589cf01db99b6f7cd109a48d45a688c3
+Author: Ben <griffinben888@gmail.com>
+Date:   Thu Dec 18 21:38:20 2025 +0000
+
+    HMM: add static_full_plus_diag covariance structure (C + D_k)
+
+diff --git a/debug_static_fc_plus_diag.py b/debug_static_fc_plus_diag.py
+new file mode 100644
+index 00000000..a35dbed3
+--- /dev/null
++++ b/debug_static_fc_plus_diag.py
+@@ -0,0 +1,132 @@
++"""
++Minimal sanity test for HMM covariance_structure='static_full_plus_diag'.
++
++Checks:
++1) Training runs end-to-end.
++2) Inferred covariances have identical off-diagonals across states.
++"""
++
++print("Importing packages")
++import os
++import numpy as np
++
++from osl_dynamics.simulation import HMM_MVN
++from osl_dynamics.data import Data
++from osl_dynamics.models.hmm import Config, Model
++from osl_dynamics.inference import modes, metrics
++
++# -----------------------
++# Settings
++# -----------------------
++results_dir = "results_static_fc_plus_diag"
++os.makedirs(results_dir, exist_ok=True)
++
++np.random.seed(0)
++
++K = 5
++P = 11
++n_samples = 25600
++
++# -----------------------
++# Build a shared covariance + state-specific diagonal boosts
++# -----------------------
++print("Constructing ground-truth covariances Σ_k = C + D_k")
++
++# Make a random SPD shared covariance C_shared
++A = np.random.randn(P, P)
++C_shared = A @ A.T
++C_shared = C_shared / np.mean(np.diag(C_shared))  # normalize scale a bit
++
++# Make state-specific diagonal boosts (positive)
++# Ensure boosts are not tiny so states are distinguishable
++D_diag = np.exp(np.random.randn(K, P) * 0.3)  # lognormal-ish
++# Optionally spread them a bit more
++D_diag = D_diag * np.linspace(0.8, 1.5, K)[:, None]
++
++# Combine: Σ_k = C_shared + diag(D_k)
++covs = np.zeros((K, P, P))
++for k in range(K):
++    covs[k] = C_shared + np.diag(D_diag[k])
++
++# Means: zero
++means = np.zeros((K, P), dtype=np.float32)
++
++# -----------------------
++# Simulate data with HMM_MVN using our custom covs
++# -----------------------
++print("Simulating data")
++sim = HMM_MVN(
++    n_samples=n_samples,
++    n_states=K,
++    n_channels=P,
++    trans_prob="sequence",
++    stay_prob=0.9,
++    means=means,
++    covariances=covs,
++)
++
++data = Data(sim.time_series)
++data.standardize()
++
++# -----------------------
++# Build model
++# -----------------------
++print("Building model")
++config = Config(
++    n_states=K,
++    n_channels=P,
++    sequence_length=200,
++    learn_means=False,
++    learn_covariances=True,
++    covariance_structure="static_full_plus_diag",
++    batch_size=16,
++    learning_rate=0.01,
++    n_epochs=15,
++)
++
++model = Model(config)
++model.summary()
++
++# -----------------------
++# Train
++# -----------------------
++print("Training model")
++model.train(data)
++
++# -----------------------
++# Check inferred covariances
++# -----------------------
++print("Checking inferred covariances")
++inf_means, inf_covs = model.get_means_covariances()  # inf_covs should be (K,P,P)
++
++# Off-diagonal identity check
++off = inf_covs.copy()
++idx = np.arange(P)
++off[:, idx, idx] = 0.0
++
++max_offdiag_diff = np.max(np.abs(off - off[0:1]))
++print("Max |offdiag_k - offdiag_0|:", max_offdiag_diff)
++
++# Diagonal variability check (should differ across states)
++diag = np.diagonal(inf_covs, axis1=1, axis2=2)
++mean_diag_std = diag.std(axis=0).mean()
++print("Mean std of diagonal across states:", mean_diag_std)
++
++# -----------------------
++# Optional: dice coefficient (not the main pass/fail)
++# -----------------------
++print("Computing dice coefficient (optional)")
++alp = model.get_alpha(data)
++stc = modes.argmax_time_courses(alp)
++inf_stc, sim_stc = modes.match_modes(stc, sim.state_time_course)
++dice = metrics.dice_coefficient(inf_stc, sim_stc)
++print("Dice coefficient:", dice)
++
++# -----------------------
++# Simple pass/fail thresholds
++# -----------------------
++# Offdiagonal should be essentially identical (allow tiny float tolerance)
++if max_offdiag_diff < 1e-5:
++    print("PASS: off-diagonals identical across states (within tolerance).")
++else:
++    print("FAIL: off-diagonals differ across states more than expected.")
+diff --git a/osl_dynamics/models/hmm.py b/osl_dynamics/models/hmm.py
+index dbdcbedf..74f314d9 100644
+--- a/osl_dynamics/models/hmm.py
++++ b/osl_dynamics/models/hmm.py
+@@ -69,6 +69,13 @@ class Config(BaseModelConfig, MarkovStateInferenceModelConfig):
+         Initialisation for state covariances.
+         If :code:`diagonal_covariances=True` and full matrices are passed,
+         the diagonal is extracted.
++    covariance_structure : str
++        Covariance parameterisation to use. Options:
++        - 'state_full': a full covariance matrix per state.
++        - 'state_diag': a diagonal covariance matrix per state.
++        - 'static_full_plus_diag': Σ_k = C + D_k, where C is a single shared
++          full covariance across states and D_k is a state-specific diagonal matrix.
++        Note: for 'static_full_plus_diag' the 'diagonal_covariances' flag is ignored.
+     covariances_epsilon : float
+         Error added to state covariances for numerical stability.
+     diagonal_covariances : bool
+@@ -145,6 +152,7 @@ class Config(BaseModelConfig, MarkovStateInferenceModelConfig):
+     learn_covariances: bool = None
+     initial_means: np.ndarray = None
+     initial_covariances: np.ndarray = None
++    covariance_structure: str = "state_full"  # "state_full", "state_diag", "static_full_plus_diag"
+     diagonal_covariances: bool = False
+     covariances_epsilon: float = None
+     means_regularizer: tf.keras.regularizers.Regularizer = None
+@@ -165,6 +173,12 @@ class Config(BaseModelConfig, MarkovStateInferenceModelConfig):
+     def validate_observation_model_parameters(self):
+         if self.learn_means is None or self.learn_covariances is None:
+             raise ValueError("learn_means and learn_covariances must be passed.")
++        
++        allowed = ("state_full", "state_diag", "static_full_plus_diag")
++        if self.covariance_structure not in allowed:
++            raise ValueError(
++                f"covariance_structure must be one of {allowed}, got {self.covariance_structure!r}."
++            )
+ 
+         if self.covariances_epsilon is None:
+             if self.learn_covariances:
+@@ -203,32 +217,109 @@ class Model(MarkovStateInferenceModelBase):
+             config.means_regularizer,
+             name="means",
+         )
+-        if config.diagonal_covariances:
+-            covs_layer = DiagonalMatricesLayer(
+-                config.n_states,
++        mu = means_layer(data)  # (n_states, n_channels)
++
++        cov_structure = getattr(config, "covariance_structure", "state_full")
++
++        if cov_structure == "static_full_plus_diag":
++
++            # Avoid adding epsilon twice (each layer adds epsilon internally)
++            shared_eps = config.covariances_epsilon
++            diag_eps = 0.0
++
++            C_init = None
++            D_init = None
++
++            if config.initial_covariances is not None:
++                init = config.initial_covariances
++                if isinstance(init, str):
++                    init = np.load(init)
++
++                init = np.asarray(init)
++                # allow (K,P,P) only for now
++                if init.shape != (config.n_states, config.n_channels, config.n_channels):
++                    raise ValueError(
++                        "For covariance_structure='static_full_plus_diag', "
++                        f"initial_covariances must have shape "
++                        f"({config.n_states}, {config.n_channels}, {config.n_channels})."
++                    )
++
++                P = config.n_channels
++
++                # Mean off-diagonal as shared FC
++                C_init = init.copy()
++                C_init[:, np.arange(P), np.arange(P)] = 0.0
++                C_init = C_init.mean(axis=0, keepdims=True)  # (1,P,P)
++
++                # Give C a modest diagonal baseline for PD
++                C_init[:, np.arange(P), np.arange(P)] = 1.0
++
++                # D_k matches the remaining diagonal (clipped positive)
++                target_diag = np.diagonal(init, axis1=1, axis2=2)              # (K,P)
++                C_diag = np.diagonal(C_init[0], axis1=0, axis2=1)[None, :]     # (1,P)
++                D_diag = target_diag - C_diag                                  # (K,P)
++                D_diag = np.maximum(D_diag, 1e-6)                              # ensure positive
++                D_init = D_diag                                                # DiagonalMatricesLayer accepts (K,P)
++
++            # Shared full covariance C: shape (1, n_channels, n_channels)
++            shared_covs_layer = CovarianceMatricesLayer(
++                1,
+                 config.n_channels,
+                 config.learn_covariances,
+-                config.initial_covariances,
+-                config.covariances_epsilon,
++                C_init,
++                shared_eps,
+                 config.covariances_regularizer,
+-                name="covs",
++                name="covs_shared",
+             )
+-        else:
+-            covs_layer = CovarianceMatricesLayer(
++            C = shared_covs_layer(data)  # (1, P, P)
++
++            # Tile to all states: (n_states, P, P)
++            C = tf.tile(C, [config.n_states, 1, 1])
++
++            # State-specific diagonal D_k: (n_states, P, P)
++            diag_covs_layer = DiagonalMatricesLayer(
+                 config.n_states,
+                 config.n_channels,
+                 config.learn_covariances,
+-                config.initial_covariances,
+-                config.covariances_epsilon,
++                D_init,
++                diag_eps,
+                 config.covariances_regularizer,
+-                name="covs",
++                name="covs_diag",
+             )
+-        mu = means_layer(data)  # data not used
+-        D = covs_layer(data)  # data not used
++            D = diag_covs_layer(data)  # (K, P, P)
++
++            # sigma = C + D  # (K, P, P)
++            sigma = layers.Add(name="covs_shared_plus_diag")([C, D])
++
++        else:
++            # Backwards-compatible behaviour
++            if (cov_structure == "state_diag") or config.diagonal_covariances:
++                covs_layer = DiagonalMatricesLayer(
++                    config.n_states,
++                    config.n_channels,
++                    config.learn_covariances,
++                    config.initial_covariances,
++                    config.covariances_epsilon,
++                    config.covariances_regularizer,
++                    name="covs",
++                )
++            else:
++                covs_layer = CovarianceMatricesLayer(
++                    config.n_states,
++                    config.n_channels,
++                    config.learn_covariances,
++                    config.initial_covariances,
++                    config.covariances_epsilon,
++                    config.covariances_regularizer,
++                    name="covs",
++                )
++            sigma = covs_layer(data)  # (n_states, P, P)
++
+ 
+         # Log-likelihood
+         ll_layer = SeparateLogLikelihoodLayer(config.n_states, name="ll")
+-        ll = ll_layer([data, mu, D])
++        # ll = ll_layer([data, mu, D])
++        ll = ll_layer([data, mu, sigma])
+ 
+         # Hidden state inference
+         hidden_state_inference_layer = HiddenMarkovStateInferenceLayer(
+@@ -265,6 +356,16 @@ class Model(MarkovStateInferenceModelBase):
+         """
+         return obs_mod.get_observation_model_parameter(self.model, "means")
+ 
++    # def get_covariances(self):
++    #     """Get the state covariances.
++
++    #     Returns
++    #     -------
++    #     covariances : np.ndarray
++    #         State covariances. Shape is (n_states, n_channels, n_channels).
++    #     """
++    #     return obs_mod.get_observation_model_parameter(self.model, "covs")
++    
+     def get_covariances(self):
+         """Get the state covariances.
+ 
+@@ -273,7 +374,19 @@ class Model(MarkovStateInferenceModelBase):
+         covariances : np.ndarray
+             State covariances. Shape is (n_states, n_channels, n_channels).
+         """
+-        return obs_mod.get_observation_model_parameter(self.model, "covs")
++        cov_structure = getattr(self.config, "covariance_structure", "state_full")
++
++        if cov_structure == "static_full_plus_diag":
++            C = obs_mod.get_observation_model_parameter(self.model, "covs_shared")  # (1,P,P)
++            D = obs_mod.get_observation_model_parameter(self.model, "covs_diag")    # (K,P,P)
++            if D.ndim == 2:  # (K,P)
++                D = np.array([np.diag(d) for d in D])
++
++    
++            C = np.tile(C, (self.config.n_states, 1, 1))                            # (K,P,P)
++            return C + D
++
++        return obs_mod.get_observation_model_parameter(self.model, "covs")    
+ 
+     def get_means_covariances(self):
+         """Get the state means and covariances.
+@@ -310,6 +423,25 @@ class Model(MarkovStateInferenceModelBase):
+             update_initializer=update_initializer,
+         )
+ 
++    # def set_covariances(self, covariances, update_initializer=True):
++    #     """Set the state covariances.
++
++    #     Parameters
++    #     ----------
++    #     covariances : np.ndarray
++    #         State covariances. Shape is (n_states, n_channels, n_channels).
++    #     update_initializer : bool, optional
++    #         Do we want to use the passed covariances when we re-initialize
++    #         the model?
++    #     """
++    #     obs_mod.set_observation_model_parameter(
++    #         self.model,
++    #         covariances,
++    #         layer_name="covs",
++    #         update_initializer=update_initializer,
++    #         diagonal_covariances=self.config.diagonal_covariances,
++    #     )
++
+     def set_covariances(self, covariances, update_initializer=True):
+         """Set the state covariances.
+ 
+@@ -321,6 +453,43 @@ class Model(MarkovStateInferenceModelBase):
+             Do we want to use the passed covariances when we re-initialize
+             the model?
+         """
++        cov_structure = getattr(self.config, "covariance_structure", "state_full")
++
++        if cov_structure == "static_full_plus_diag":
++            covariances = np.asarray(covariances)
++
++            K = self.config.n_states
++            P = self.config.n_channels
++            if covariances.shape != (K, P, P):
++                raise ValueError(f"covariances must have shape ({K}, {P}, {P}).")
++
++            # Shared off-diagonal
++            C = covariances.copy()
++            C[:, np.arange(P), np.arange(P)] = 0.0
++            C = C.mean(axis=0, keepdims=True)  # (1,P,P)
++            C[:, np.arange(P), np.arange(P)] = 1.0
++
++            # State-specific diagonal residual (passed as (K,P) into DiagonalMatricesLayer)
++            target_diag = np.diagonal(covariances, axis1=1, axis2=2)          # (K,P)
++            C_diag = np.diagonal(C[0], axis1=0, axis2=1)[None, :]             # (1,P)
++            D_diag = np.maximum(target_diag - C_diag, 1e-6)                   # (K,P)
++
++            obs_mod.set_observation_model_parameter(
++                self.model,
++                C,
++                layer_name="covs_shared",
++                update_initializer=update_initializer,
++            )
++            obs_mod.set_observation_model_parameter(
++                self.model,
++                D_diag,
++                layer_name="covs_diag",
++                update_initializer=update_initializer,
++                # diagonal_covariances=True,
++            )
++            return
++
++        # Default / existing behaviour
+         obs_mod.set_observation_model_parameter(
+             self.model,
+             covariances,
+diff --git a/osl_dynamics/models/obs_mod.py b/osl_dynamics/models/obs_mod.py
+index b2563d35..d09abfca 100644
+--- a/osl_dynamics/models/obs_mod.py
++++ b/osl_dynamics/models/obs_mod.py
+@@ -30,6 +30,8 @@ def get_observation_model_parameter(model, layer_name):
+     available_layers = [
+         "means",
+         "covs",
++        "covs_shared",
++        "covs_diag",
+         "stds",
+         "corrs",
+         "group_means",
+@@ -71,6 +73,8 @@ def set_observation_model_parameter(
+     available_layers = [
+         "means",
+         "covs",
++        "covs_shared",
++        "covs_diag",
+         "stds",
+         "corrs",
+         "group_means",
+@@ -84,11 +88,17 @@ def set_observation_model_parameter(
+ 
+     obs_parameter = obs_parameter.astype(np.float32)
+ 
+-    if layer_name == "stds" or (layer_name == "covs" and diagonal_covariances):
++    # if layer_name == "stds" or (layer_name == "covs" and diagonal_covariances):
++    #     if obs_parameter.ndim == 3:
++    #         # Only keep the diagonal as a vector
++    #         obs_parameter = np.diagonal(obs_parameter, axis1=1, axis2=2)
++
++    if layer_name == "stds" or (layer_name == "covs" and diagonal_covariances) or (layer_name == "covs_diag"):
+         if obs_parameter.ndim == 3:
+             # Only keep the diagonal as a vector
+             obs_parameter = np.diagonal(obs_parameter, axis1=1, axis2=2)
+ 
++
+     obs_layer = model.get_layer(layer_name)
+     learnable_tensor_layer = obs_layer.layers[0]
+ 

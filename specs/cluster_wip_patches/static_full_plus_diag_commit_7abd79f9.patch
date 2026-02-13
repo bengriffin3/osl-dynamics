@@ -1,0 +1,193 @@
+commit 7abd79f9dacc96f33b1288bbef6257066b7d51f0
+Author: Ben Griffin <griffinben888@gmail.com>
+Date:   Thu Feb 12 22:16:51 2026 +0000
+
+    Use OptimizerV2 MarkovStateModelOptimizer + add static_full_plus_diag cov structure
+
+diff --git a/osl_dynamics/inference/optimizers.py b/osl_dynamics/inference/optimizers.py
+index a6649089..896660f2 100644
+--- a/osl_dynamics/inference/optimizers.py
++++ b/osl_dynamics/inference/optimizers.py
+@@ -1,18 +1,12 @@
+-"""Custom TensorFlow optimizers."""
++"""Custom TensorFlow optimizers.
+ 
+-from packaging import version
++"""
+ 
+ import tensorflow as tf
++from keras.optimizers.optimizer_v2 import optimizer_v2
+ 
+-if version.parse(tf.__version__) < version.parse("2.12"):
+-    from keras.optimizers.optimizer_v2.optimizer_v2 import OptimizerV2 as Optimizer
+-elif version.parse(tf.__version__) < version.parse("2.13"):
+-    from keras.optimizers.legacy.optimizer_v2 import OptimizerV2 as Optimizer
+-else:
+-    from keras.optimizers import Optimizer
+ 
+-
+-class ExponentialMovingAverage(Optimizer):
++class ExponentialMovingAverage(optimizer_v2.OptimizerV2):
+     """Optimizer for applying a exponential moving average update.
+ 
+     Parameters
+@@ -22,55 +16,68 @@ class ExponentialMovingAverage(Optimizer):
+         calculated as :code:`(1-decay) * old + decay * new`.
+     """
+ 
+-    def __init__(self, learning_rate, decay=0.1):
+-        super().__init__(learning_rate, name="EMAOptimizer")
+-        self.decay = tf.Variable(decay, trainable=False, name="ema_decay")
++    def __init__(self, decay=0.1):
++        super().__init__(name="EMAOptimizer")
++        self.decay = decay
+ 
+-    def update_step(self, gradient, variable, learning_rate):
+-        value = (1.0 - self.decay) * variable + self.decay * gradient
+-        self.assign(variable, value)
++    @tf.function
++    def _resource_apply_dense(self, grad, var):
++        # grad should be the new value for var
++        grad = tf.cast(grad, var.dtype)
++        return var.assign((1.0 - self.decay) * var + self.decay * grad)
+ 
+ 
+-class MarkovStateModelOptimizer(Optimizer):
++class MarkovStateModelOptimizer(optimizer_v2.OptimizerV2):
+     """Optimizer for a model containing a hidden state Markov chain.
+ 
+     Parameters
+     ----------
++    ema_optimizer : osl_dynamics.inference.optimizers.ExponentialMovingAverage
++        Exponential moving average optimizer for the transition
++        probability matrix.
+     base_optimizer : tf.keras.optimizers.Optimizer
+         A TensorFlow optimizer for all other trainable model variables.
+-    ema_optimizer : osl_dynamics.inference.optimizers.ExponentialMovingAverage
+-        Exponential moving average optimizer.
+-    ema_variable : list
+-        List of trainable variables to update with the EMA optimizer.
+     learning_rate : float
+         Learning rate for the base optimizer.
+     """
+ 
+-    def __init__(self, base_optimizer, ema_optimizer, ema_variables, learning_rate):
+-        super().__init__(learning_rate, name="MarkovStateModelOptimizer")
+-        self.base_optimizer = base_optimizer
++    def __init__(self, ema_optimizer, base_optimizer, learning_rate):
++        super().__init__(name="MarkovStateModelOptimizer")
++
++        # Set learning rate for this optimizer (needed to avoid and error)
++        self._set_hyper("learning_rate", learning_rate)
++
++        # Moving average optimizer for the transition probability matrix
+         self.ema_optimizer = ema_optimizer
+-        self.ema_variable_ids = [id(v) for v in ema_variables]
+-
+-    def apply_gradients(self, grads_and_vars, **kwargs):
+-        # Update base optimizer learning rate
+-        self.base_optimizer.learning_rate.assign(self.learning_rate)
+-
+-        # Split variables
+-        base_grads, base_vars = [], []
+-        ema_grads, ema_vars = [], []
+-        for g, v in grads_and_vars:
+-            if id(v) in self.ema_variable_ids:
+-                ema_grads.append(g)
+-                ema_vars.append(v)
+-            else:
+-                base_grads.append(g)
+-                base_vars.append(v)
+-
+-        # Apply gradients with the base optimizer
+-        if base_grads and base_vars:
+-            self.base_optimizer.apply_gradients(zip(base_grads, base_vars))
+-
+-        # Apply gradients with the EMA optimizer
+-        if ema_grads and ema_vars:
+-            self.ema_optimizer.apply_gradients(zip(ema_grads, ema_vars))
++
++        # Optimizer for all other trainable variables
++        self.base_optimizer = base_optimizer
++        self.base_optimizer._set_hyper("learning_rate", self.learning_rate)
++
++    def _create_slots(self, var_list):
++        self.base_optimizer._create_slots(var_list)
++
++    def _prepare_local(self, var_device, var_dtype, apply_state):
++        return self.base_optimizer._prepare_local(
++            var_device,
++            var_dtype,
++            apply_state,
++        )
++
++    def _resource_apply_dense(self, grad, var, **kwargs):
++        if "hid_state_inf_kernel" in var.name:
++            # This is a HiddenMarkovStateInferenceLayer, use a moving
++            # average to update the transition probability matrix
++            updated_var = self.ema_optimizer._resource_apply_dense(grad, var)
++        else:
++            # This is a normal TensorFlow variable,
++            # use the base optimizer to update this variable
++            updated_var = self.base_optimizer._resource_apply_dense(
++                grad,
++                var,
++                **kwargs,
++            )
++        return updated_var
++
++    def _resource_apply_sparse(self, *args, **kwargs):
++        return self.base_optimizer._resource_apply_sparse(*args, **kwargs)
+diff --git a/osl_dynamics/models/hmm.py b/osl_dynamics/models/hmm.py
+index 74f314d9..87ed3e5c 100644
+--- a/osl_dynamics/models/hmm.py
++++ b/osl_dynamics/models/hmm.py
+@@ -463,16 +463,23 @@ class Model(MarkovStateInferenceModelBase):
+             if covariances.shape != (K, P, P):
+                 raise ValueError(f"covariances must have shape ({K}, {P}, {P}).")
+ 
+-            # Shared off-diagonal
+-            C = covariances.copy()
+-            C[:, np.arange(P), np.arange(P)] = 0.0
+-            C = C.mean(axis=0, keepdims=True)  # (1,P,P)
+-            C[:, np.arange(P), np.arange(P)] = 1.0
++            eps = self.config.covariances_epsilon
++            if eps is None:
++                eps = 1e-6
++            eps = max(float(eps), 1e-6)
+ 
+-            # State-specific diagonal residual (passed as (K,P) into DiagonalMatricesLayer)
+-            target_diag = np.diagonal(covariances, axis1=1, axis2=2)          # (K,P)
+-            C_diag = np.diagonal(C[0], axis1=0, axis2=1)[None, :]             # (1,P)
+-            D_diag = np.maximum(target_diag - C_diag, 1e-6)                   # (K,P)
++            # Shared covariance (we will rely on D_diag for state-specific variances).
++            # Use the mean across states and set a small diagonal for stability.
++            C = covariances.mean(axis=0, keepdims=True)  # (1, P, P)
++            # keep C diagonal as the mean diagonal to help PD
++            C_diag = np.diagonal(C[0], axis1=0, axis2=1).copy()
++            C[:, np.arange(P), np.arange(P)] = np.maximum(C_diag, eps)
++
++
++            # State-specific diagonal residuals (K, P)
++            target_diag = np.diagonal(covariances, axis1=1, axis2=2)  # (K,P)
++            C_diag = np.diagonal(C[0], axis1=0, axis2=1)[None, :]     # (1,P)
++            D_diag = np.maximum(target_diag - C_diag, eps)
+ 
+             obs_mod.set_observation_model_parameter(
+                 self.model,
+@@ -485,7 +492,6 @@ class Model(MarkovStateInferenceModelBase):
+                 D_diag,
+                 layer_name="covs_diag",
+                 update_initializer=update_initializer,
+-                # diagonal_covariances=True,
+             )
+             return
+ 
+@@ -498,6 +504,7 @@ class Model(MarkovStateInferenceModelBase):
+             diagonal_covariances=self.config.diagonal_covariances,
+         )
+ 
++
+     def set_means_covariances(
+         self,
+         means,
