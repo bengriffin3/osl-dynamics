@@ -33,3 +33,6 @@ MANIFEST
 
 # Per-project virtualenvs
 .venv*/
+
+
+dev/smoke_tests/_outputs/
